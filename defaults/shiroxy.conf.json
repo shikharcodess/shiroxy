@@ -1,0 +1,117 @@
+{
+    "default": {
+        "timeout": {
+            "connect": "10s",
+            "client": "10s",
+            "server": "10s"
+        },
+        "mode": "http"
+    },
+    "frontend": [
+        {
+            "bind": [
+                {
+                    "port": "443",
+                    "host": "*",
+                    "secure": {
+                        "target": "single",
+                        "certandkey": {
+                            "cert": "cert-location",
+                            "key": "key-location"
+                        }
+                    }
+                }
+            ],
+            "options": [
+                "http-server-close",
+                "forwardfor"
+            ],
+            "default_backend": "",
+            "fallback_backend": ""
+        },
+        {
+            "bind": [
+                {
+                    "port": "443",
+                    "host": "*",
+                    "secure": {
+                        "target": "multiple",
+                        "multiple_certandkey_location": "internal/redis"
+                    }
+                }
+            ],
+            "options": [
+                "http-server-close",
+                "forwardfor"
+            ],
+            "default_backend": "",
+            "fallback_backend": ""
+        },
+        {
+            "bind": [
+                {
+                    "port": "80",
+                    "host": "*"
+                }
+            ],
+            "options": [
+                "http-server-close",
+                "forwardfor"
+            ],
+            "default_backend": "",
+            "fallback_backend": ""
+        }
+    ],
+    "backend": [
+        {
+            "name": "backend-name",
+            "servers": [
+                {
+                    "id": "<backend-name-server-1>",
+                    "host": "127.0.0.1",
+                    "port": "80"
+                },
+                {
+                    "id": "<backend-name-server-1>",
+                    "host": "127.0.0.1",
+                    "port": "80"
+                }
+            ],
+            "health": true,
+            "secure": true,
+            "secure_varify": false,
+            "balance": "round_robin/least_count/sticky_session"
+        }
+    ],
+    "logging": {
+        "enable": true,
+        "mode": "native/http/native-http",
+        "schema": [
+            "[date-time] "
+        ],
+        "include": [
+            "*",
+            ""
+        ]
+    },
+    "webhook": [
+        {
+            "enable": true,
+            "events": [
+                ""
+            ],
+            "url": ""
+        }
+    ],
+    "health": {
+        "enable": true,
+        "bind": {
+            "host": "*",
+            "port": ""
+        },
+        "auth": {
+            "user": "",
+            "password": ""
+        }
+    }
+}

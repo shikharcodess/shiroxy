@@ -1,0 +1,21 @@
+DEFAULT
+    TIMEOUT
+        CONNECT 10s
+        CLIENT 10s
+        SERVER 10s
+    MODE http
+    
+
+FRONTEND
+    BIND *:80
+    BIND *:443 
+    SECURE_MODE single/multiple
+    
+
+BACKEND
+
+LOGGING
+
+WEBHOOK
+
+HEALTH
