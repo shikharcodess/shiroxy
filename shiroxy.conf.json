@@ -80,7 +80,7 @@
     ],
     "logging": {
         "enable": true,
-        "mode": "native/http/native-http",
+        "remote_enable": true,
         "schema": [
             "[date-time] "
         ],

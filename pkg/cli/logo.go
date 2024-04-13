@@ -2,15 +2,15 @@ package cli
 
 import (
 	"fmt"
-	"shiroxy/pkg/loader"
+	"shiroxy/pkg/logger"
 )
 
 func PrintLogo() {
 	fmt.Println("")
-	loader.BluePrintln("||||||  ##### #   # # #####  ####  #   #  #   #  |||")
-	loader.BluePrintln("|||||  #     #   # # #   # #    #  # #    # #  |||||")
-	loader.BluePrintln("||||  ##### ##### # ##### #    #   #      #  |||||||")
-	loader.BluePrintln("|||      # #   # # # #   #    #  # #    #  |||||||||")
-	loader.BluePrintln("||  ##### #   # # #  #   ####  #   #  #  |||||||||||")
+	logger.BluePrintln("||||||  ##### #   # # #####  ####  #   #  #   #  |||")
+	logger.BluePrintln("|||||  #     #   # # #   # #    #  # #    # #  |||||")
+	logger.BluePrintln("||||  ##### ##### # ##### #    #   #      #  |||||||")
+	logger.BluePrintln("|||      # #   # # # #   #    #  # #    #  |||||||||")
+	logger.BluePrintln("||  ##### #   # # #  #   ####  #   #  #  |||||||||||")
 	fmt.Println("")
 }

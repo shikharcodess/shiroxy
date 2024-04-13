@@ -31,6 +31,7 @@ require (
 	golang.org/x/arch v0.7.0 // indirect
 	golang.org/x/crypto v0.18.0 // indirect
 	google.golang.org/protobuf v1.32.0 // indirect
+	gopkg.in/mcuadros/go-syslog.v2 v2.3.0 // indirect
 )
 
 require (

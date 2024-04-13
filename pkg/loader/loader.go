@@ -2,6 +2,7 @@ package loader
 
 import (
 	"fmt"
+	"shiroxy/pkg/logger"
 	"time"
 )
 
@@ -28,9 +29,9 @@ func ProgressLoader(loaderController *ProgressLoaderPayload) {
 		case <-loaderController.Close:
 			mainLoop = false
 			if loaderController.Failed {
-				RedPrintln(loaderController.FailedMessage)
+				logger.RedPrintln(loaderController.FailedMessage)
 			} else {
-				GreenPrintln(loaderController.SuccessMessage)
+				logger.GreenPrintln(loaderController.SuccessMessage)
 			}
 		default:
 			for i := 0; i < len(loaderController.Content); i++ {
