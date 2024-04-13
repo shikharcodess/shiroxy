@@ -2,7 +2,7 @@ package shiroxy
 
 import (
 	"context"
-	"shiroxy/internal/configuration"
+	"shiroxy/pkg/configuration"
 
 	"github.com/go-redis/redis/v8"
 )

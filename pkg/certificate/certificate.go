@@ -1,4 +1,4 @@
-package internal
+package certificate
 
 // Copyright 2020 Matthew Holt
 //
@@ -77,15 +77,23 @@ func GenerateCertificate(domain string, email string) error {
 
 	fmt.Println(strings.TrimSpace(email))
 	var emails []string = []string{}
-	if len(email) > 0 {
-		emails = append(emails, email)
-	}
+	// emails = append(emails, "yshikharfzd10@gmail.com")
+	// if len(email) > 0 {
+	// 	emails = append(emails, email)
+	// }
+
+	fmt.Println("emails ===========")
+	fmt.Println(emails)
+	fmt.Println("length of emails: ", len(emails))
 
 	account := acme.Account{
 		Contact:              emails,
 		TermsOfServiceAgreed: true,
 		PrivateKey:           accountPrivateKey,
 	}
+
+	contactEmails := account.Contact
+	fmt.Println("contactEmails: ", contactEmails)
 
 	// now we can make our low-level ACME client
 	client := &acme.Client{
@@ -100,7 +108,7 @@ func GenerateCertificate(domain string, email string) error {
 		Logger: logger,
 	}
 
-	fmt.Println("0")
+	fmt.Println("0============")
 
 	// if the account is new, we need to create it; only do this once!
 	// then be sure to securely store the account key and metadata so
@@ -110,18 +118,22 @@ func GenerateCertificate(domain string, email string) error {
 		return fmt.Errorf("new account: %v", err)
 	}
 
-	fmt.Println("1")
+	fmt.Println("1=================")
 
 	// now we can actually get a cert; first step is to create a new order
 	var ids []acme.Identifier
 	for _, domain := range domains {
 		ids = append(ids, acme.Identifier{Type: "dns", Value: domain})
 	}
+
+	fmt.Println("2")
 	order := acme.Order{Identifiers: ids}
 	order, err = client.NewOrder(ctx, account, order)
 	if err != nil {
 		return fmt.Errorf("creating new order: %v", err)
 	}
+
+	fmt.Println("3")
 
 	// each identifier on the order should now be associated with an
 	// authorization object; we must make the authorization "valid"
@@ -132,8 +144,16 @@ func GenerateCertificate(domain string, email string) error {
 			return fmt.Errorf("getting authorization %q: %v", authzURL, err)
 		}
 
+		fmt.Println("=========================== authzURL: ", authzURL)
+
 		// pick any available challenge to solve
 		challenge := authz.Challenges[0]
+
+		fmt.Println("challenge: ", challenge.Identifier)
+		fmt.Println("K ===== ", challenge.KeyAuthorization)
+		fmt.Println("T ===== ", challenge.Token)
+
+		
 
 		// at this point, you must prepare to solve the challenge; how
 		// you do this depends on the challenge (see spec for details).
@@ -149,6 +169,8 @@ func GenerateCertificate(domain string, email string) error {
 			return fmt.Errorf("initiating challenge %q: %v", challenge.URL, err)
 		}
 
+		fmt.Println("challenge: ", challenge)
+
 		// now the challenge should be under way; at this point, we can
 		// continue initiating all the other challenges so that they are
 		// all being solved in parallel (this saves time when you have a
@@ -163,6 +185,8 @@ func GenerateCertificate(domain string, email string) error {
 
 		// if we got here, then the challenge was solved successfully, hurray!
 	}
+
+	fmt.Println("4")
 
 	// to request a certificate, we finalize the order; this function
 	// will poll the order status for us and return once the cert is

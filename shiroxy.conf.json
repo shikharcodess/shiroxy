@@ -5,7 +5,8 @@
             "client": "100s",
             "server": "100s"
         },
-        "mode": "http"
+        "mode": "http",
+        "enable_dns_challenge_solver": true
     },
     "frontend": [
         {

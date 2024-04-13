@@ -2,8 +2,10 @@ package cli
 
 import (
 	"fmt"
-	"shiroxy/internal"
-	"shiroxy/internal/configuration"
+	internal "shiroxy/pkg"
+	"shiroxy/pkg/certificate"
+
+	"shiroxy/pkg/configuration"
 
 	"github.com/spf13/cobra"
 )
@@ -48,7 +50,7 @@ var certCmd = &cobra.Command{
 		fmt.Println("cert command fired")
 		fmt.Println("domain: ", domainVar)
 		fmt.Println("email: ", emailVar)
-		err := internal.GenerateCertificate(domainVar, emailVar)
+		err := certificate.GenerateCertificate(domainVar, emailVar)
 		fmt.Println("err: ", err)
 	},
 }
@@ -61,7 +63,10 @@ func init() {
 }
 
 func Execute() (*configuration.Config, error) {
+	// For printing shiroxy logo
 	PrintLogo()
+
+	// Starting the main execution engine
 	err := rootCmd.Execute()
 	if err != nil {
 		return nil, err

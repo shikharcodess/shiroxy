@@ -15,7 +15,8 @@ type Default struct {
 		Server  string `json:"server"`
 		Client  string `json:"client"`
 	} `json:"timeout"`
-	Mode string `json:"mode"`
+	Mode                        string `json:"mode"`
+	Enable_Dns_Challenge_Solver bool   `json:"enable_dns_challenge_solver"`
 }
 
 type Frontend struct {

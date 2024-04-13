@@ -3,7 +3,7 @@ package configuration
 import (
 	"errors"
 	"os"
-	"shiroxy/internal/loader"
+	"shiroxy/pkg/loader"
 
 	"github.com/spf13/viper"
 )
