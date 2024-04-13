@@ -2,7 +2,7 @@ package loader
 
 import (
 	"fmt"
-	"shiroxy/internal/loader/color"
+	"shiroxy/pkg/loader/color"
 )
 
 func RedPrintln(content any) {
