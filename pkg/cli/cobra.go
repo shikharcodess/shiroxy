@@ -4,13 +4,14 @@ import (
 	"fmt"
 	internal "shiroxy/pkg"
 	"shiroxy/pkg/certificate"
+	"shiroxy/pkg/models"
 
 	"shiroxy/pkg/configuration"
 
 	"github.com/spf13/cobra"
 )
 
-var config *configuration.Config
+var config *models.Config
 
 var (
 	configVar string
@@ -62,7 +63,7 @@ func init() {
 	certCmd.PersistentFlags().StringVarP(&emailVar, "email", "e", "", "email to be attached with the certificate")
 }
 
-func Execute() (*configuration.Config, error) {
+func Execute() (*models.Config, error) {
 	// For printing shiroxy logo
 	PrintLogo()
 

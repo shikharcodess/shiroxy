@@ -4,11 +4,12 @@ import (
 	"errors"
 	"os"
 	"shiroxy/pkg/loader"
+	"shiroxy/pkg/models"
 
 	"github.com/spf13/viper"
 )
 
-func ConfigReader(configUrl string) (*Config, error) {
+func ConfigReader(configUrl string) (*models.Config, error) {
 
 	loaderController := loader.ProgressLoaderPayload{
 		Close:          make(chan bool),
@@ -20,7 +21,7 @@ func ConfigReader(configUrl string) (*Config, error) {
 	}
 	go loader.ProgressLoader(&loaderController)
 
-	var config Config
+	var config models.Config
 	viper.SetConfigName("shiroxy")
 	viper.SetConfigType("json")
 

@@ -2,7 +2,7 @@ package shiroxy
 
 import (
 	"context"
-	"shiroxy/pkg/configuration"
+	"shiroxy/pkg/models"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -25,7 +25,7 @@ type SecureMethod struct {
 	RedisClient                  *redis.Client
 }
 
-func StartProxyServer(config *configuration.Config) (*ProxyServer, error) {
+func StartProxyServer(config *models.Config) (*ProxyServer, error) {
 	var proxyServer ProxyServer
 	// TODO: Implement Proxy Server Start Logic
 	for i := 0; i < len(config.Frontend); i++ {

@@ -1,15 +1,15 @@
 package defaults
 
 import (
-	"fmt"
 	"log"
 	challenger "shiroxy/pkg/certificate/challenge"
-	"shiroxy/pkg/configuration"
 	"shiroxy/pkg/loader"
+	"shiroxy/pkg/logger"
+	"shiroxy/pkg/models"
 	"time"
 )
 
-func ExecuteDefault(configuration *configuration.Config) {
+func ExecuteDefault(configuration *models.Config, logHandler *logger.Logger) error {
 	if configuration.Default.Enable_Dns_Challenge_Solver {
 		// Starting DNS challeng solver server
 		loaderController := loader.ProgressLoaderPayload{
@@ -29,8 +29,8 @@ func ExecuteDefault(configuration *configuration.Config) {
 				loaderController.CloseLoader(true, err.Error(), 1000)
 				log.Fatal(err)
 			}
-			fmt.Println("closing loader on success")
 			loaderController.CloseLoader(false, "", 1000)
 		}(&loaderController)
 	}
+	return nil
 }

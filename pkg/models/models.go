@@ -1,4 +1,4 @@
-package configuration
+package models
 
 type Config struct {
 	Default  Default    `json:"default"`
@@ -52,12 +52,12 @@ type Backend struct {
 }
 
 type Logging struct {
-	Enable bool `json:"enable"`
-	Bind   struct {
-		WithHealth bool   `json:"with_health"`
-		Host       string `json:"host"`
-		Port       string `json:"port"`
-	} `json:"bind"`
+	Enable      bool `json:"enable"`
+	EnableRmote bool `json:"enable_remote"`
+	RemoteBind  struct {
+		Host string `json:"host"`
+		Port string `json:"port"`
+	} `json:"remote_bind"`
 	Mode    string   `json:"mode"`
 	Schema  []string `json:"schema"`
 	Include []string `json:"include"`
