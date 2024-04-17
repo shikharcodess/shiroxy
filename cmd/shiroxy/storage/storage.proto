@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package main;
+
+option go_package= "./cmd/shiroxy/storage";
+
+message DomainMetadata {
+  string domain_name = 1;
+  bytes combined_cert = 2;
+  map<string, string> metadata = 3;
+}

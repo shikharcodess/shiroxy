@@ -60,3 +60,7 @@ go run /cmd/main.go -c shiroxy.config.json
 - RestAPI for dynamic registering and removing domains
 - Remote Logger
 - Remote Configuration Manager
+
+# Compiling Proto file
+
+`protoc --go_out=. ./cmd/shiroxy/storage/storage.proto`

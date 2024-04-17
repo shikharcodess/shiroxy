@@ -6,7 +6,12 @@
             "server": "100s"
         },
         "mode": "http",
-        "enable_dns_challenge_solver": true
+        "enable_dns_challenge_solver": true,
+        "storage": {
+            "location": "redis/memory",
+            "redis_host": "",
+            "redis_port": ""
+        }
     },
     "frontend": [
         {

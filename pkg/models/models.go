@@ -9,14 +9,23 @@ type Config struct {
 	Health   Health     `json:"health"`
 }
 
+type Storage struct {
+	Location              string `json:"location"`
+	RedisHost             string `json:"redis_host"`
+	RedisPort             string `json:"redis_port"`
+	RedisPassword         string `json:"redis_password"`
+	RedisConnectionString string `json:"redis_connection_string"`
+}
+
 type Default struct {
 	TIMEOUT struct {
 		Connect string `json:"connect"`
 		Server  string `json:"server"`
 		Client  string `json:"client"`
 	} `json:"timeout"`
-	Mode                        string `json:"mode"`
-	Enable_Dns_Challenge_Solver bool   `json:"enable_dns_challenge_solver"`
+	Mode                        string  `json:"mode"`
+	Enable_Dns_Challenge_Solver bool    `json:"enable_dns_challenge_solver"`
+	Storage                     Storage `json:"storage"`
 }
 
 type Frontend struct {
