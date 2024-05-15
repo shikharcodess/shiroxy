@@ -1,9 +1,11 @@
 <div align="center">
   <img width="200" src="media/shiroxylogo_transparent.png" alt="shiroxy Logo">
-  <br>
+  <!-- <br> -->
   <h1>SHIROXY</h1>
-  <h5>A reverse proxy that support SSL/TLS at first place and support mutiple domains</h5>
+  <h5>A reverse proxy that support SSL/TLS at first place, support mutiple domains and custom re-routing logic</h5>
 </div>
 <hr>
 
-# ------------- IN DEVELOPMENT ---------------
+<div align="center">
+  <h1>IN DEVELOPMENT</h1>
+</div>

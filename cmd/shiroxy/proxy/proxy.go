@@ -1,4 +1,4 @@
-package shiroxy
+package proxy
 
 import (
 	"context"
