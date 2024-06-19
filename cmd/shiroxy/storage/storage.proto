@@ -6,6 +6,7 @@ option go_package= "./cmd/shiroxy/storage";
 
 message DomainMetadata {
   string domain_name = 1;
-  bytes combined_cert = 2;
-  map<string, string> metadata = 3;
+  string status = 2;
+  bytes combined_cert = 3;
+  map<string, string> metadata = 4;
 }

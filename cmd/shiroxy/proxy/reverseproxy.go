@@ -20,6 +20,8 @@ import (
 	"golang.org/x/net/http/httpguts"
 )
 
+func StartShiroxyReverseProxy()
+
 // A BufferPool is an interface for getting and returning temporary
 // byte slices for use by io.CopyBuffer.
 type BufferPool interface {
@@ -27,25 +29,13 @@ type BufferPool interface {
 	Put([]byte)
 }
 
-// type ReverseProxy struct {
-// 	Context       context.Context
-// 	Transport     http.RoundTripper
-// 	Director      func(*http.Request)
-// 	FlushInterval time.Duration
-// 	Logger        logger.Logger
-// 	// BufferPool optionally specifies a buffer pool to
-// 	// get byte slices for use by io.CopyBuffer when
-// 	// copying HTTP response bodies.
-// 	BufferPool BufferPool
-// }
-
-// ReverseProxy is an HTTP Handler that takes an incoming request and
+// Shiroxy is an HTTP Handler that takes an incoming request and
 // sends it to another server, proxying the response back to the
 // client.
 //
 // 1xx responses are forwarded to the client if the underlying
 // transport supports ClientTrace.Got1xxResponse.
-type ReverseProxy struct {
+type Shiroxy struct {
 	// Logger is utility for logging, it can log to terminal,
 	// file and also to remote source using syslog protocol.
 	Logger logger.Logger
@@ -113,7 +103,7 @@ type ReverseProxy struct {
 	// If zero, no periodic flushing is done.
 	// A negative value means to flush immediately
 	// after each write to the client.
-	// The FlushInterval is ignored when ReverseProxy
+	// The FlushInterval is ignored when Shiroxy
 	// recognizes a response as a streaming response, or
 	// if its ContentLength is -1; for such responses, writes
 	// are flushed to the client immediately.
@@ -165,12 +155,12 @@ var hopHeaders = []string{
 	"Upgrade",
 }
 
-func (p *ReverseProxy) defaultErrorHandler(rw http.ResponseWriter, req *http.Request, err error) {
+func (p *Shiroxy) defaultErrorHandler(rw http.ResponseWriter, req *http.Request, err error) {
 	p.logf("http: proxy error: %v", err)
 	rw.WriteHeader(http.StatusBadGateway)
 }
 
-func (p *ReverseProxy) getErrorHandler() func(http.ResponseWriter, *http.Request, error) {
+func (p *Shiroxy) getErrorHandler() func(http.ResponseWriter, *http.Request, error) {
 	if p.ErrorHandler != nil {
 		return p.ErrorHandler
 	}
@@ -179,7 +169,7 @@ func (p *ReverseProxy) getErrorHandler() func(http.ResponseWriter, *http.Request
 
 // modifyResponse conditionally runs the optional ModifyResponse hook
 // and reports whether the request should proceed.
-func (p *ReverseProxy) modifyResponse(rw http.ResponseWriter, res *http.Response, req *http.Request) bool {
+func (p *Shiroxy) modifyResponse(rw http.ResponseWriter, res *http.Response, req *http.Request) bool {
 	if p.ModifyResponse == nil {
 		return true
 	}
@@ -191,7 +181,7 @@ func (p *ReverseProxy) modifyResponse(rw http.ResponseWriter, res *http.Response
 	return true
 }
 
-func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	transport := p.Transport
 	if transport == nil {
 		transport = http.DefaultTransport
@@ -243,7 +233,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if (p.Director != nil) == (p.Rewrite != nil) {
-		p.getErrorHandler()(rw, req, errors.New("ReverseProxy must have exactly one of Director or Rewrite set"))
+		p.getErrorHandler()(rw, req, errors.New("Shiroxy must have exactly one of Director or Rewrite set"))
 		return
 	}
 
@@ -371,7 +361,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		defer res.Body.Close()
 		// Since we're streaming the response, if we run into an error all we can do
-		// is abort the request. Issue 23643: ReverseProxy should use ErrAbortHandler
+		// is abort the request. Issue 23643: Shiroxy should use ErrAbortHandler
 		// on read error while copying body.
 		if !shouldPanicOnCopyError(req) {
 			p.logf("suppressing panic for copyResponse error in test; copy error: %v", err)
@@ -443,7 +433,7 @@ func removeHopByHopHeaders(h http.Header) {
 
 // flushInterval returns the p.FlushInterval value, conditionally
 // overriding its value for a specific request/response.
-func (p *ReverseProxy) flushInterval(res *http.Response) time.Duration {
+func (p *Shiroxy) flushInterval(res *http.Response) time.Duration {
 	resCT := res.Header.Get("Content-Type")
 
 	// For Server-Sent Events responses, flush immediately.
@@ -460,7 +450,7 @@ func (p *ReverseProxy) flushInterval(res *http.Response) time.Duration {
 	return p.FlushInterval
 }
 
-func (p *ReverseProxy) copyResponse(dst http.ResponseWriter, src io.Reader, flushInterval time.Duration) error {
+func (p *Shiroxy) copyResponse(dst http.ResponseWriter, src io.Reader, flushInterval time.Duration) error {
 	var w io.Writer = dst
 
 	if flushInterval != 0 {
@@ -489,7 +479,7 @@ func (p *ReverseProxy) copyResponse(dst http.ResponseWriter, src io.Reader, flus
 
 // copyBuffer returns any write errors or non-EOF read errors, and the amount
 // of bytes written.
-func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, error) {
+func (p *Shiroxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, error) {
 	if len(buf) == 0 {
 		buf = make([]byte, 32*1024)
 	}
@@ -497,7 +487,7 @@ func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int
 	for {
 		nr, rerr := src.Read(buf)
 		if rerr != nil && rerr != io.EOF && rerr != context.Canceled {
-			p.logf("httputil: ReverseProxy read error during body copy: %v", rerr)
+			p.logf("httputil: Shiroxy read error during body copy: %v", rerr)
 		}
 		if nr > 0 {
 			nw, werr := dst.Write(buf[:nr])
@@ -520,7 +510,7 @@ func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int
 	}
 }
 
-func (p *ReverseProxy) logf(format string, args ...any) {
+func (p *Shiroxy) logf(format string, args ...any) {
 	if p.ErrorLog != nil {
 		p.ErrorLog.Printf(format, args...)
 	} else {
@@ -584,7 +574,7 @@ func upgradeType(h http.Header) string {
 	return h.Get("Upgrade")
 }
 
-func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.Request, res *http.Response) {
+func (p *Shiroxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.Request, res *http.Response) {
 	reqUpType := upgradeType(req.Header)
 	resUpType := upgradeType(res.Header)
 	if !IsPrint(resUpType) { // We know reqUpType is ASCII, it's checked by the caller.

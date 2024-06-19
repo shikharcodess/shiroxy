@@ -17,15 +17,21 @@ type Storage struct {
 	RedisConnectionString string `json:"redis_connection_string"`
 }
 
+type Analytics struct {
+	CollectionInterval int    `json:"collection_interval"`
+	RouteName          string `json:"route_name"`
+}
+
 type Default struct {
 	TIMEOUT struct {
 		Connect string `json:"connect"`
 		Server  string `json:"server"`
 		Client  string `json:"client"`
 	} `json:"timeout"`
-	Mode                        string  `json:"mode"`
-	Enable_Dns_Challenge_Solver bool    `json:"enable_dns_challenge_solver"`
-	Storage                     Storage `json:"storage"`
+	Mode                        string    `json:"mode"`
+	Enable_Dns_Challenge_Solver bool      `json:"enable_dns_challenge_solver"`
+	Storage                     Storage   `json:"storage"`
+	Analytics                   Analytics `json:"analytics"`
 }
 
 type Frontend struct {

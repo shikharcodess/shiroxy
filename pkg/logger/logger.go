@@ -7,21 +7,38 @@ import (
 	"time"
 )
 
-func StartLogger(logConfig models.Logging) (*Logger, error) {
+func StartLogger(logConfig *models.Logging) (*Logger, error) {
+
 	logger := Logger{}
-	logger.logConfig = &logConfig
-	if logConfig.EnableRmote {
-		err := logger.startSyslogServer(logConfig.RemoteBind.Host, logConfig.RemoteBind.Port)
-		if err != nil {
-			return nil, err
+	if logConfig != nil {
+		logger.logConfig = logConfig
+		if logConfig.EnableRmote {
+			err := logger.startSyslogServer(logConfig.RemoteBind.Host, logConfig.RemoteBind.Port)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
+
 	return &logger, nil
 }
 
 type Logger struct {
 	sysLogger *syslog.Writer
 	logConfig *models.Logging
+}
+
+func (l *Logger) InjectLogConfig(logConfig *models.Logging) error {
+	if logConfig != nil {
+		l.logConfig = logConfig
+		if logConfig.EnableRmote {
+			err := l.startSyslogServer(logConfig.RemoteBind.Host, logConfig.RemoteBind.Port)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (l *Logger) LogError(content any, packageName, moduleName string) {
@@ -47,7 +64,7 @@ func (l *Logger) handleLog(content any, event string, packageName string, module
 	formattedLog := "[" + formattedDateTime + "] [" + packageName + "] [" + moduleName + "] => " + content.(string)
 
 	if l.logConfig.Enable {
-		BluePrint("[" + formattedDateTime + "]")
+		BluePrint("\n[" + formattedDateTime + "]")
 		BluePrint(" [" + packageName + "]")
 		BluePrint(" [" + moduleName + "]")
 		CyanPrint(" => ")

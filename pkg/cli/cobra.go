@@ -28,8 +28,8 @@ var rootCmd = &cobra.Command{
 	Version:      internal.VERSION,
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		fmt.Println("cmdVar: ", configVar)
-		fmt.Println("args: ", args)
+		// fmt.Println("cmdVar: ", configVar)
+		// fmt.Println("args: ", args)
 
 		if configVar == "" {
 			err := cmd.Help()

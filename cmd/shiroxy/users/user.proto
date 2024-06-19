@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package main;
+
+option go_package= "./cmd/shiroxy/user";
+
+message User {
+    string id = 1;
+    string name = 2;
+    string email = 3;
+    string hashed_password = 4;
+    string role_id = 5;
+}
+
+message Role {
+    string id = 1;
+    string name = 2;
+}
+
+message ShutDownBy {
+    bool is_user = 1;
+    string user_id = 2;
+    string shutdown_message = 3;
+}
+
+message ShutDownDataPersistance {
+    string shutdown_datetime = 1;
+    ShutDownBy shutdown_by = 2;
+    int32 total_domain_at_shutdown = 3;
+    int32 total_user_at_shutdown = 4;
+    int32 memory_virt = 5;
+    int32 memory_res = 6;
+    int32 memory_shr = 7;
+    int32 cpu_usage = 8;
+    int32 gc_count = 9;
+    int32 pid = 10;
+}
