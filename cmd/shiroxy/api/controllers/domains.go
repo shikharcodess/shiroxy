@@ -2,14 +2,14 @@ package controllers
 
 import (
 	"shiroxy/cmd/shiroxy/api/middlewares"
-	"shiroxy/cmd/shiroxy/storage"
+	"shiroxy/cmd/shiroxy/domains"
 
 	"github.com/gin-gonic/gin"
 )
 
 type DomainController struct {
-	storage     *storage.Storage
-	middlewares *middlewares.Middlewares
+	Storage     *domains.Storage
+	Middlewares *middlewares.Middlewares
 }
 
 type registerDomainRequestBody struct {
@@ -22,28 +22,71 @@ func (d *DomainController) RegisterDomain(c *gin.Context) {
 	var requestBody registerDomainRequestBody
 	err := c.ShouldBindJSON(&requestBody)
 	if err != nil {
-		d.middlewares.WriteResponse(c, gin.H{
-			"error": err.Error(),
+		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
+			Success: false,
+			Error:   err,
 		}, 400)
 		return
 	}
 
 	if requestBody.Domain == "" || requestBody.Email == "" {
-		d.middlewares.WriteResponse(c, gin.H{
-			"error": "fields domain and email is required",
+		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
+			Success: false,
+			Error:   "fields domain and email is required",
 		}, 400)
 		return
 	}
 
-	err = d.storage.RegisterDomain(requestBody.Domain, requestBody.Email, requestBody.Metadata)
+	err = d.Storage.RegisterDomain(requestBody.Domain, requestBody.Email, requestBody.Metadata)
 	if err != nil {
-		d.middlewares.WriteResponse(c, gin.H{
-			"error": err.Error(),
+		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
+			Success: false,
+			Error:   err,
 		}, 400)
 		return
 	} else {
-		d.middlewares.WriteResponse(c, gin.H{
-			"": "",
+		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
+			Success: true,
 		}, 200)
 	}
 }
+
+func (d *DomainController) ForceSSL(c *gin.Context) {
+	type forceSslRequestBody struct {
+		Domain string `json:"domain"`
+	}
+
+	var requestBody forceSslRequestBody
+	err := c.BindJSON(&requestBody)
+	if err != nil {
+		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
+			Success: false,
+			Error:   err,
+		}, 400)
+		return
+	}
+
+	if requestBody.Domain == "" {
+		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
+			Success: false,
+			Error:   err,
+		}, 400)
+		return
+	}
+
+	err = d.Storage.ForceSSL(requestBody.Domain)
+	if err != nil {
+		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
+			Success: false,
+			Error:   err,
+		}, 400)
+		return
+	}
+	d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
+		Success: true,
+	}, 200)
+}
+
+func (d *DomainController) UpdateDomain(c *gin.Context) {}
+
+func (d *DomainController) RemoveDomain(c *gin.Context) {}

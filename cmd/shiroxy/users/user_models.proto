@@ -1,20 +1,16 @@
+// protoc --go_out=. ./cmd/shiroxy/users/user_models.proto
+
 syntax = "proto3";
 
 package main;
 
-option go_package= "./cmd/shiroxy/user";
+option go_package= "./cmd/shiroxy/users";
 
 message User {
     string id = 1;
     string name = 2;
     string email = 3;
     string hashed_password = 4;
-    string role_id = 5;
-}
-
-message Role {
-    string id = 1;
-    string name = 2;
 }
 
 message ShutDownBy {
@@ -34,4 +30,5 @@ message ShutDownDataPersistance {
     int32 cpu_usage = 8;
     int32 gc_count = 9;
     int32 pid = 10;
+    repeated User users = 11;
 }

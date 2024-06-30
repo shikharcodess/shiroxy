@@ -1,4 +1,4 @@
-package storage
+package domains
 
 import (
 	"context"
@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"net/http"
 	"shiroxy/pkg/models"
-	"strings"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/mholt/acmez/acme"
@@ -52,19 +51,15 @@ func (s *Storage) RegisterDomain(domainName, user_email string, metadata map[str
 		return errors.New("domainName should not be empty")
 	}
 
-	createBody := &DomainMetadata{
-		DomainName: domainName,
-	}
-
-	domainCertificateMetadata, err := s.createAcmeAccount(domainName, user_email, metadata)
+	domainMetadata, err := s.generateAcmeAccountKeys(domainName, user_email, metadata)
 	if err != nil {
 		return err
 	}
 
 	if s.storage.Location == "memory" {
-		s.domainMetadata[domainName] = createBody
+		s.domainMetadata[domainName] = domainMetadata
 	} else if s.storage.Location == "redis" {
-		marshaledBody, err := proto.Marshal(createBody)
+		marshaledBody, err := proto.Marshal(domainMetadata)
 		if err != nil {
 			return err
 		}
@@ -76,7 +71,8 @@ func (s *Storage) RegisterDomain(domainName, user_email string, metadata map[str
 		}
 	}
 
-	s.generateCertificate(*domainCertificateMetadata)
+	// TODO: June 30 10:34 AM - Handle Certificate Storage, generation is already handled.
+	s.generateCertificate(domainMetadata)
 
 	return nil
 }
@@ -155,6 +151,10 @@ func (s *Storage) RemoveDomain(domainName string) error {
 	return nil
 }
 
+func (s *Storage) ForceSSL(domainName string) error {
+	return nil
+}
+
 func (s *Storage) connectRedis() (*redis.Client, error) {
 	var rdb redis.Client
 
@@ -194,58 +194,97 @@ type DomainCertificateMetadata struct {
 	Metadata map[string]string
 }
 
-func (s *Storage) createAcmeAccount(domainName, email string, metadata map[string]string) (*DomainCertificateMetadata, error) {
+func (s *Storage) generateAcmeAccountKeys(domainName, email string, metadata map[string]string) (*DomainMetadata, error) {
 	// put your domains here (IDNs must be in ASCII form)
 	domains := []string{domainName}
 
-	// first you need a private key for your certificate
-	certPrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, fmt.Errorf("generating certificate key: %v", err)
+	var csrDER []byte
+	var accountPrivateKey *ecdsa.PrivateKey
+	var domainMetadata *DomainMetadata
+
+	domainMetadata = s.domainMetadata[domainName]
+	if domainMetadata != nil {
+		var err error
+		csrDER = domainMetadata.CsrDer
+		accountPrivateKey, err = x509.ParseECPrivateKey(domainMetadata.AcmeAccountPrivateKey)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// first you need a private key for your certificate
+		certPrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return nil, fmt.Errorf("generating certificate key: %v", err)
+		}
+
+		// then you need a certificate request; here's a simple one - we need
+		// to fill out the template, then create the actual CSR, then parse it
+		csrTemplate := &x509.CertificateRequest{DNSNames: domains}
+		csrDER, err = x509.CreateCertificateRequest(rand.Reader, csrTemplate, certPrivateKey)
+		if err != nil {
+			return nil, fmt.Errorf("generating CSR: %v", err)
+		}
+
+		// before you can get a cert, you'll need an account registered with
+		// the ACME CA - it also needs a private key and should obviously be
+		// different from any key used for certificates!
+		accountPrivateKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return nil, fmt.Errorf("generating account key: %v", err)
+		}
+
+		privateKeyBytes, err := x509.MarshalECPrivateKey(accountPrivateKey)
+		if err != nil {
+			return nil, err
+		}
+		domainMetadata = &DomainMetadata{
+			Domain:                domainName,
+			Email:                 email,
+			Metadata:              metadata,
+			CsrDer:                csrDER,
+			AcmeAccountPrivateKey: privateKeyBytes,
+		}
 	}
 
-	// then you need a certificate request; here's a simple one - we need
-	// to fill out the template, then create the actual CSR, then parse it
-	csrTemplate := &x509.CertificateRequest{DNSNames: domains}
-	csrDER, err := x509.CreateCertificateRequest(rand.Reader, csrTemplate, certPrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("generating CSR: %v", err)
-	}
+	return domainMetadata, nil
 
-	// before you can get a cert, you'll need an account registered with
-	// the ACME CA - it also needs a private key and should obviously be
-	// different from any key used for certificates!
-	accountPrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, fmt.Errorf("generating account key: %v", err)
-	}
+	// fmt.Println(strings.TrimSpace(email))
+	// var emails []string = []string{}
+	// // emails = append(emails, "yshikharfzd10@gmail.com")
+	// // if len(email) > 0 {
+	// // 	emails = append(emails, email)
+	// // }
 
-	fmt.Println(strings.TrimSpace(email))
-	var emails []string = []string{}
-	// emails = append(emails, "yshikharfzd10@gmail.com")
-	// if len(email) > 0 {
-	// 	emails = append(emails, email)
+	// fmt.Println("emails ===========")
+	// fmt.Println(emails)
+	// fmt.Println("length of emails: ", len(emails))
+
+	// account := acme.Account{
+	// 	Contact:              emails,
+	// 	TermsOfServiceAgreed: true,
+	// 	PrivateKey:           accountPrivateKey,
 	// }
 
-	fmt.Println("emails ===========")
-	fmt.Println(emails)
-	fmt.Println("length of emails: ", len(emails))
+	// return &DomainCertificateMetadata{
+	// 	Domains: []string{domainName},
+	// 	CSRDer:  csrDER,
 
-	account := acme.Account{
-		Contact:              emails,
+	// 	Account:  account,
+	// 	Metadata: metadata,
+	// }, nil
+}
+
+func (s *Storage) generateCertificate(domainMetadata *DomainMetadata) error {
+
+	accountPrivateKey, err := x509.ParseECPrivateKey(domainMetadata.AcmeAccountPrivateKey)
+	if err != nil {
+		return err
+	}
+	savedAccount := acme.Account{
+		Contact:              []string{fmt.Sprintf("mailto:%s", &domainMetadata.Email)},
 		TermsOfServiceAgreed: true,
 		PrivateKey:           accountPrivateKey,
 	}
-
-	return &DomainCertificateMetadata{
-		Domains:  []string{domainName},
-		CSRDer:   csrDER,
-		Account:  account,
-		Metadata: metadata,
-	}, nil
-}
-
-func (s *Storage) generateCertificate(domainCertificateMetadata DomainCertificateMetadata) error {
 
 	// a context allows us to cancel long-running ops
 	ctx := context.Background()
@@ -271,12 +310,12 @@ func (s *Storage) generateCertificate(domainCertificateMetadata DomainCertificat
 
 	var account acme.Account
 
-	account, err = client.GetAccount(ctx, domainCertificateMetadata.Account)
+	account, err = client.GetAccount(ctx, savedAccount)
 	if err != nil {
 		// if the account is new, we need to create it; only do this once!
 		// then be sure to securely store the account key and metadata so
 		// you can reuse it later!
-		account, err = client.NewAccount(ctx, domainCertificateMetadata.Account)
+		account, err = client.NewAccount(ctx, savedAccount)
 		if err != nil {
 			return fmt.Errorf("new account: %v", err)
 		}
@@ -284,9 +323,10 @@ func (s *Storage) generateCertificate(domainCertificateMetadata DomainCertificat
 
 	// now we can actually get a cert; first step is to create a new order
 	var ids []acme.Identifier
-	for _, domain := range domainCertificateMetadata.Domains {
-		ids = append(ids, acme.Identifier{Type: "dns", Value: domain})
-	}
+	ids = append(ids, acme.Identifier{Type: "dns", Value: domainMetadata.Domain})
+	// for _, domain := range domainCertificateMetadata.Domains {
+	// 	ids = append(ids, acme.Identifier{Type: "dns", Value: domain})
+	// }
 
 	fmt.Println("2")
 	order := acme.Order{Identifiers: ids}
@@ -348,7 +388,7 @@ func (s *Storage) generateCertificate(domainCertificateMetadata DomainCertificat
 
 	fmt.Println("4")
 
-	csr, err := x509.ParseCertificateRequest(domainCertificateMetadata.CSRDer)
+	csr, err := x509.ParseCertificateRequest(domainMetadata.CsrDer)
 	if err != nil {
 		return fmt.Errorf("parsing generated CSR: %v", err)
 	}
@@ -375,6 +415,6 @@ func (s *Storage) generateCertificate(domainCertificateMetadata DomainCertificat
 	for _, cert := range certChains {
 		fmt.Printf("Certificate %q:\n%s\n\n", cert.URL, cert.ChainPEM)
 	}
-
+	// TODO: June 30 10:34 AM - Handle Certificate Storage, generation is already handled.
 	return nil
 }

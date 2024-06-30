@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"shiroxy/cmd/shiroxy/analytics"
-	"shiroxy/cmd/shiroxy/storage"
+	"shiroxy/cmd/shiroxy/domains"
 	"shiroxy/pkg/color"
 	"shiroxy/pkg/logger"
 	"shiroxy/pkg/models"
@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func HandleGracefulShutdown(fromdefer bool, panicData interface{}, configuration *models.Config, storage *storage.Storage, logHandler *logger.Logger, analyticsConfiguration *analytics.AnalyticsConfiguration) {
+func HandleGracefulShutdown(fromdefer bool, panicData interface{}, configuration *models.Config, storage *domains.Storage, logHandler *logger.Logger, analyticsConfiguration *analytics.AnalyticsConfiguration) {
 	var sigs chan os.Signal
 	if !fromdefer {
 		sigs := make(chan os.Signal, 1)

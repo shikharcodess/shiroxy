@@ -6,7 +6,7 @@ package main
 import (
 	"log"
 	"shiroxy/cmd/shiroxy/analytics"
-	"shiroxy/cmd/shiroxy/storage"
+	"shiroxy/cmd/shiroxy/domains"
 	"shiroxy/pkg/cli"
 	"shiroxy/pkg/logger"
 	"shiroxy/utils"
@@ -33,7 +33,7 @@ func main() {
 	}
 
 	// Starting storage service for storing domain and user data
-	storageHandler, err := storage.InitializeStorage(&configuration.Default.Storage)
+	storageHandler, err := domains.InitializeStorage(&configuration.Default.Storage)
 	if err != nil {
 		logHandler.LogError(err.Error(), "Startup", "main")
 	}

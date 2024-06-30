@@ -1,0 +1,24 @@
+// protoc --go_out=. ./cmd/shiroxy/domains/domain.proto
+
+syntax = "proto3";
+
+package main;
+
+option go_package= "./cmd/shiroxy/domains";
+
+message DomainMetadata {
+  string status = 1;
+  string date = 2;
+  string domain = 3;
+  string email = 4;
+  bytes acme_account_private_key = 5;
+  bytes csr_der = 6;
+  bytes combined_cert = 7;
+  map<string, string> metadata = 8;
+}
+
+message DataPersistance {
+  string datetime = 1;
+  string user = 2;
+  repeated DomainMetadata domains = 3;
+}
