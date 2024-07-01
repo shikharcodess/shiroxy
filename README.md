@@ -3,11 +3,11 @@
 <!-- <h1>IN DEVELOPMENT</h1> -->
 <img src="https://raw.githubusercontent.com/ShikharY10/shiroxy/main/media/shiroxy_logo.png?token=GHSAT0AAAAAACPHT77B7ITJ6WUFTKRB6PC2ZUCKY4Q" alt="Magator Logo">
 
-  <h1>Go Reverse Proxy with SSL and Dynamic Routing</h1>
+  <h1>A Reverse Proxy with Multiple Domains, Automatic SSL and Dynamic Routing</h1>
 </div>
 <!-- <hr> -->
 
-Welcome to the Go Reverse Proxy project! This Go-based reverse proxy is designed to provide seamless and secure web traffic management with the following key features:
+Welcome to the Shirxoy! This Go-based reverse proxy is designed to provide seamless and secure web traffic management with the following key features:
 
 ## Key Features
 
