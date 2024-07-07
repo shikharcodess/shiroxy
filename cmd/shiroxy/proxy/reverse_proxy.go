@@ -20,8 +20,6 @@ import (
 	"golang.org/x/net/http/httpguts"
 )
 
-func StartShiroxyReverseProxy()
-
 // A BufferPool is an interface for getting and returning temporary
 // byte slices for use by io.CopyBuffer.
 type BufferPool interface {
@@ -38,7 +36,7 @@ type BufferPool interface {
 type Shiroxy struct {
 	// Logger is utility for logging, it can log to terminal,
 	// file and also to remote source using syslog protocol.
-	Logger logger.Logger
+	Logger *logger.Logger
 
 	// Rewrite must be a function which modifies
 	// the request into a new request to be sent
@@ -155,8 +153,9 @@ var hopHeaders = []string{
 	"Upgrade",
 }
 
-func (p *Shiroxy) defaultErrorHandler(rw http.ResponseWriter, req *http.Request, err error) {
-	p.logf("http: proxy error: %v", err)
+func (p *Shiroxy) DefaultErrorHandler(rw http.ResponseWriter, req *http.Request, err error) {
+	// p.logf("http: shiroxy error: %v", err)
+	p.Logger.LogError(err.Error(), "Shiroxy", "Error")
 	rw.WriteHeader(http.StatusBadGateway)
 }
 
@@ -164,7 +163,7 @@ func (p *Shiroxy) getErrorHandler() func(http.ResponseWriter, *http.Request, err
 	if p.ErrorHandler != nil {
 		return p.ErrorHandler
 	}
-	return p.defaultErrorHandler
+	return p.DefaultErrorHandler
 }
 
 // modifyResponse conditionally runs the optional ModifyResponse hook
@@ -181,14 +180,14 @@ func (p *Shiroxy) modifyResponse(rw http.ResponseWriter, res *http.Response, req
 	return true
 }
 
-func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *ShiroxyRequest) error {
 	transport := p.Transport
 	if transport == nil {
 		transport = http.DefaultTransport
 	}
 
 	// ====== Implement a new way for handling unexpected closing of http requests.
-	ctx := req.Context()
+	ctx := req.Request.Context()
 	if ctx.Done() != nil {
 		// CloseNotifier predates context.Context, and has been
 		// entirely superseded by it. If the request contains
@@ -215,8 +214,8 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 	// ================================================================
 
-	outreq := req.Clone(ctx)
-	if req.ContentLength == 0 {
+	outreq := req.Request.Clone(ctx)
+	if req.Request.ContentLength == 0 {
 		outreq.Body = nil // Issue 16036: nil Body for http.Transport retries
 	}
 	if outreq.Body != nil {
@@ -233,8 +232,9 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if (p.Director != nil) == (p.Rewrite != nil) {
-		p.getErrorHandler()(rw, req, errors.New("Shiroxy must have exactly one of Director or Rewrite set"))
-		return
+		dErr := errors.New("Shiroxy must have exactly one of Director or Rewrite set")
+		p.getErrorHandler()(rw, req.Request, dErr)
+		return dErr
 	}
 
 	if p.Director != nil {
@@ -246,9 +246,11 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	outreq.Close = false
 
 	reqUpType := upgradeType(outreq.Header)
+
 	if !IsPrint(reqUpType) {
-		p.getErrorHandler()(rw, req, fmt.Errorf("client tried to switch to invalid protocol %q", reqUpType))
-		return
+		pErr := fmt.Errorf("client tried to switch to invalid protocol %q", reqUpType)
+		p.getErrorHandler()(rw, req.Request, pErr)
+		return pErr
 	}
 	removeHopByHopHeaders(outreq.Header)
 
@@ -257,7 +259,7 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	// advertise that unless the incoming client request thought it was worth
 	// mentioning.) Note that we look at req.Header, not outreq.Header, since
 	// the latter has passed through removeHopByHopHeaders.
-	if httpguts.HeaderValuesContainsToken(req.Header["Te"], "trailers") {
+	if httpguts.HeaderValuesContainsToken(req.Request.Header["Te"], "trailers") {
 		outreq.Header.Set("Te", "trailers")
 	}
 
@@ -281,13 +283,13 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		outreq.URL.RawQuery = cleanQueryParams(outreq.URL.RawQuery)
 
 		pr := &ProxyRequest{
-			In:  req,
+			In:  req.Request,
 			Out: outreq,
 		}
 		p.Rewrite(pr)
 		outreq = pr.Out
 	} else {
-		if clientIP, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
+		if clientIP, _, err := net.SplitHostPort(req.Request.RemoteAddr); err == nil {
 			// If we aren't the first proxy retain prior
 			// X-Forwarded-For information as a comma+space
 			// separated list and fold multiple headers into one.
@@ -323,23 +325,23 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	res, err := transport.RoundTrip(outreq)
 	if err != nil {
-		p.getErrorHandler()(rw, outreq, err)
-		return
+		// p.getErrorHandler()(rw, outreq, err)
+		return err
 	}
 
 	// Deal with 101 Switching Protocols responses: (WebSocket, h2c, etc)
 	if res.StatusCode == http.StatusSwitchingProtocols {
 		if !p.modifyResponse(rw, res, outreq) {
-			return
+			return nil
 		}
 		p.handleUpgradeResponse(rw, outreq, res)
-		return
+		return nil
 	}
 
 	removeHopByHopHeaders(res.Header)
 
 	if !p.modifyResponse(rw, res, outreq) {
-		return
+		return nil
 	}
 
 	copyHeader(rw.Header(), res.Header)
@@ -363,9 +365,9 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		// Since we're streaming the response, if we run into an error all we can do
 		// is abort the request. Issue 23643: Shiroxy should use ErrAbortHandler
 		// on read error while copying body.
-		if !shouldPanicOnCopyError(req) {
+		if !shouldPanicOnCopyError(req.Request) {
 			p.logf("suppressing panic for copyResponse error in test; copy error: %v", err)
-			return
+			return nil
 		}
 		panic(http.ErrAbortHandler)
 	}
@@ -380,7 +382,7 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	if len(res.Trailer) == announcedTrailers {
 		copyHeader(rw.Header(), res.Trailer)
-		return
+		return nil
 	}
 
 	for k, vv := range res.Trailer {
@@ -389,6 +391,7 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			rw.Header().Add(k, v)
 		}
 	}
+	return nil
 }
 
 var inOurTests bool // whether we're in our own tests

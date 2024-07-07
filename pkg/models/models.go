@@ -1,37 +1,43 @@
 package models
 
 type Config struct {
-	Default  Default    `json:"default"`
-	Frontend []Frontend `json:"frontend"`
-	Backend  []Backend  `json:"backend"`
-	Logging  Logging    `json:"logging"`
-	Webhook  []Webhook  `json:"webhook"`
-	Health   Health     `json:"health"`
+	Default  Default   `json:"default"`
+	Frontend Frontend  `json:"frontend"`
+	Backend  Backend   `json:"backend"`
+	Logging  Logging   `json:"logging"`
+	Webhook  []Webhook `json:"webhook"`
+	Health   Health    `json:"health"`
 }
 
 type Storage struct {
 	Location              string `json:"location"`
-	RedisHost             string `json:"redis_host"`
-	RedisPort             string `json:"redis_port"`
-	RedisPassword         string `json:"redis_password"`
-	RedisConnectionString string `json:"redis_connection_string"`
+	RedisHost             string `json:"redishost"`
+	RedisPort             string `json:"redisport"`
+	RedisPassword         string `json:"redispassword"`
+	RedisConnectionString string `json:"redisconnectionstring"`
 }
 
 type Analytics struct {
-	CollectionInterval int    `json:"collection_interval"`
-	RouteName          string `json:"route_name"`
+	CollectionInterval int    `json:"collectioninterval"`
+	RouteName          string `json:"routename"`
 }
 
 type Default struct {
-	TIMEOUT struct {
+	Mode                     string `json:"mode"`
+	LogPath                  string `json:"logpath"`
+	EnableDnsChallengeSolver bool   `json:"enablednschallengesolver"`
+	DataPersistancePath      string `json:"datapersistancepath"`
+	TIMEOUT                  struct {
 		Connect string `json:"connect"`
 		Server  string `json:"server"`
 		Client  string `json:"client"`
 	} `json:"timeout"`
-	Mode                        string    `json:"mode"`
-	Enable_Dns_Challenge_Solver bool      `json:"enable_dns_challenge_solver"`
-	Storage                     Storage   `json:"storage"`
-	Analytics                   Analytics `json:"analytics"`
+	Analytics      Analytics `json:"analytics"`
+	Storage        Storage   `json:"storage"`
+	ErrorResponses struct {
+		ErrorPageButtonName string `json:"errorpagebuttonname"`
+		ErrorPageButtonUrl  string `json:"errorpagebuttonurl"`
+	}
 }
 
 type Frontend struct {
@@ -45,34 +51,34 @@ type Frontend struct {
 				Cert string `json:"cert"`
 				Key  string `json:"key"`
 			} `json:"certandkey"`
-			MultipleCertAndKeyLocation string `json:"multiple_certandkey_location"`
+			MultipleCertAndKeyLocation string `json:"multiplecertandkeylocation"`
 		} `json:"secure"`
 	} `json:"bind"`
-	Options          []string `json:"options"`
-	Default_Backend  string   `json:"default_backend"`
-	Fallback_Backend string   `json:"fallback_backend"`
+	SecureVerify    string   `json:"secureverify"`
+	Secure          bool     `json:"secure"`
+	Options         []string `json:"options"`
+	DefaultBackend  string   `json:"defaultbackend"`
+	FallbackBackend string   `json:"fallbackbackend"`
+	Balance         string   `json:"balance"`
 }
 
 type Backend struct {
 	Name    string `json:"name"`
 	Servers []struct {
-		Id   string `json:"id"`
-		Host string `json:"host"`
-		Port string `json:"port"`
+		Id        string `json:"id"`
+		Host      string `json:"host"`
+		Port      string `json:"port"`
+		HealthUrl string `json:"healthurl"`
 	}
-	Health       bool   `json:"health"`
-	Secure       bool   `json:"secure"`
-	SecureVarify bool   `json:"secure_varify"`
-	Balance      string `json:"balance"`
 }
 
 type Logging struct {
 	Enable      bool `json:"enable"`
-	EnableRmote bool `json:"enable_remote"`
+	EnableRmote bool `json:"enableremote"`
 	RemoteBind  struct {
 		Host string `json:"host"`
 		Port string `json:"port"`
-	} `json:"remote_bind"`
+	} `json:"remotebind"`
 	Mode    string   `json:"mode"`
 	Schema  []string `json:"schema"`
 	Include []string `json:"include"`

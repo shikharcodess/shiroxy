@@ -4,16 +4,21 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"shiroxy/cmd/shiroxy/analytics"
 	"shiroxy/cmd/shiroxy/domains"
+	"shiroxy/cmd/shiroxy/proxy"
 	"shiroxy/pkg/cli"
 	"shiroxy/pkg/logger"
-	"shiroxy/utils"
+	"shiroxy/pkg/shutdown"
+	"sync"
 	"time"
 )
 
 func main() {
+	wg := sync.WaitGroup{}
+
 	// Starting Logger
 	logHandler, err := logger.StartLogger(nil)
 	if err != nil {
@@ -38,17 +43,31 @@ func main() {
 		logHandler.LogError(err.Error(), "Startup", "main")
 	}
 
-	analyticsConfiguration, err := analytics.StartAnalytics(time.Duration(time.Second * time.Duration(configuration.Default.Analytics.CollectionInterval)))
+	var collectionInterval int
+	if configuration.Default.Analytics.CollectionInterval == 0 {
+		collectionInterval = 10
+	} else {
+		collectionInterval = configuration.Default.Analytics.CollectionInterval
+	}
+
+	analyticsConfiguration, err := analytics.StartAnalytics(time.Duration(time.Second*time.Duration(collectionInterval)), logHandler, &wg)
 	if err != nil {
 		logHandler.LogError(err.Error(), "Startup", "main")
 	}
-
 	// Starting service that take care of graceful shutdown by doing cleanup and data persistance
-	utils.HandleGracefulShutdown(false, nil, configuration, storageHandler, logHandler, analyticsConfiguration)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		shutdown.HandleGracefulShutdown(false, nil, configuration, storageHandler, logHandler, analyticsConfiguration, &wg)
+	}()
 	defer func() {
+		fmt.Println("Shutdown defer Fired...")
 		if r := recover(); r != nil {
-			utils.HandleGracefulShutdown(true, r, configuration, storageHandler, logHandler, analyticsConfiguration)
+			shutdown.HandleGracefulShutdown(true, r, configuration, storageHandler, logHandler, analyticsConfiguration, &wg)
 		}
 	}()
 
+	proxy.StartShiroxyHandler(configuration, storageHandler, logHandler, &wg)
+
+	wg.Wait()
 }

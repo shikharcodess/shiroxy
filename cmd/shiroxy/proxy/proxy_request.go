@@ -7,6 +7,11 @@ import (
 	"strings"
 )
 
+type ShiroxyRequest struct {
+	RetryCount int
+	Request    *http.Request
+}
+
 // A ProxyRequest contains a request to be rewritten by a [ReverseProxy].
 type ProxyRequest struct {
 	// In is the request received by the proxy.

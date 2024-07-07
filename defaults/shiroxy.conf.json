@@ -1,88 +1,66 @@
 {
     "default": {
+        "mode": "http",
+        "logpath": "/home/shikharcode/Main/opensource/shiroxy",
+        "datapersistancepath": "/home/shikharcode/Main/opensource/shiroxy",
+        "enablednschallengesolver": "",
         "timeout": {
             "connect": "10s",
             "client": "10s",
             "server": "10s"
         },
-        "mode": "http"
+        "storage": {
+            "location": "memory"
+        },
+        "analytics": {
+            "collectioninterval": 10,
+            "routename": "/analytics"
+        },
+        "errorresponses": {
+            "errorpagebuttonname": "Comeata",
+            "errorpagebuttonurl": "https://youtube.com"
+        }
     },
-    "frontend": [
-        {
-            "bind": [
-                {
-                    "port": "443",
-                    "host": "*",
-                    "secure": {
-                        "target": "single",
-                        "certandkey": {
-                            "cert": "cert-location",
-                            "key": "key-location"
-                        }
-                    }
+    "frontend": {
+        "backend": "shiroxy-test",
+        "bind": {
+            "port": "8080",
+            "host": "",
+            "secure": {
+                "target": "single",
+                "certandkey": {
+                    "cert": "cert-location",
+                    "key": "key-location"
                 }
-            ],
-            "options": [
-                "http-server-close",
-                "forwardfor"
-            ],
-            "default_backend": "",
-            "fallback_backend": ""
+            }
         },
-        {
-            "bind": [
-                {
-                    "port": "443",
-                    "host": "*",
-                    "secure": {
-                        "target": "multiple",
-                        "multiple_certandkey_location": "internal/redis"
-                    }
-                }
-            ],
-            "options": [
-                "http-server-close",
-                "forwardfor"
-            ],
-            "default_backend": "",
-            "fallback_backend": ""
-        },
-        {
-            "bind": [
-                {
-                    "port": "80",
-                    "host": "*"
-                }
-            ],
-            "options": [
-                "http-server-close",
-                "forwardfor"
-            ],
-            "default_backend": "",
-            "fallback_backend": ""
-        }
-    ],
-    "backend": [
-        {
-            "name": "backend-name",
-            "servers": [
-                {
-                    "id": "<backend-name-server-1>",
-                    "host": "127.0.0.1",
-                    "port": "80"
-                },
-                {
-                    "id": "<backend-name-server-1>",
-                    "host": "127.0.0.1",
-                    "port": "80"
-                }
-            ],
-            "health": true,
-            "secure": true,
-            "secure_varify": false,
-            "balance": "round_robin/least_count/sticky_session"
-        }
-    ],
+        "options": [
+            "http-server-close",
+            "forwardfor"
+        ],
+        "secure": false,
+        "secureverify": "required",
+        "defaultbackend": "",
+        "fallbackbackend": "",
+        "balance": "round-robin"
+    },
+    "backend": {
+        "name": "shiroxy-test",
+        "servers": [
+            {
+                "id": "<backend-name-server-1>",
+                "host": "",
+                "port": "8001",
+                "healthurl": ""
+            },
+            {
+                "id": "<backend-name-server-1>",
+                "host": "",
+                "port": "8002",
+                "healthurl": ""
+            }
+        ]
+    },
     "logging": {
         "enable": true,
         "mode": "native/http/native-http",

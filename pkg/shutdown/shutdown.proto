@@ -1,0 +1,31 @@
+// protoc --go_out=. ./pkg/shutdown/shutdown.proto
+
+syntax = "proto3";
+
+package main;
+
+option go_package= "./pkg/shutdown";
+
+message ShutdownMetadata {
+    string domain_metadata = 1;
+    string system_data = 2;
+}
+
+// message DomainMetadata {
+//   string status = 1;
+//   string date = 2;
+//   string domain = 3;
+//   string email = 4;
+//   bytes acme_account_private_key = 5;
+//   bytes csr_der = 6;
+//   bytes combined_cert = 7;
+//   bytes cert_pem_block = 8;
+//   bytes key_pem_block = 9;
+//   map<string, string> metadata = 10;
+// }
+
+// message DataPersistance {
+//   string datetime = 1;
+//   string user = 2;
+//   repeated DomainMetadata domains = 3;
+// }

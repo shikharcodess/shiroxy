@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Start Shiroxy",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/shiroxy/main.go",
+            "env": {},
+            "args": ["-c", "${workspaceFolder}/defaults/shiroxy.conf.json"],
+            "showLog": true,
+            // "dlvToolPath": "${env:GOPATH}/bin/dlv"
+        }
+    ]
+}

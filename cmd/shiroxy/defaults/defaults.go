@@ -10,7 +10,7 @@ import (
 )
 
 func ExecuteDefault(configuration *models.Config, logHandler *logger.Logger) error {
-	if configuration.Default.Enable_Dns_Challenge_Solver {
+	if configuration.Default.EnableDnsChallengeSolver {
 		// Starting DNS challeng solver server
 		loaderController := loader.ProgressLoaderPayload{
 			Close:          make(chan bool),

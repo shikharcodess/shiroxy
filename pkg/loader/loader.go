@@ -42,7 +42,6 @@ func ProgressLoader(loaderController *ProgressLoaderPayload) {
 					fmt.Print("\r", loaderController.MainContent)
 
 				}
-
 			}
 		}
 	}

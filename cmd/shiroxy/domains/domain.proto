@@ -14,7 +14,9 @@ message DomainMetadata {
   bytes acme_account_private_key = 5;
   bytes csr_der = 6;
   bytes combined_cert = 7;
-  map<string, string> metadata = 8;
+  bytes cert_pem_block = 8;
+  bytes key_pem_block = 9;
+  map<string, string> metadata = 10;
 }
 
 message DataPersistance {

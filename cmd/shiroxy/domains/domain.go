@@ -21,7 +21,7 @@ import (
 type Storage struct {
 	storage        *models.Storage
 	redisClient    *redis.Client
-	domainMetadata map[string]*DomainMetadata
+	DomainMetadata map[string]*DomainMetadata
 }
 
 func InitializeStorage(storage *models.Storage) (*Storage, error) {
@@ -35,15 +35,16 @@ func InitializeStorage(storage *models.Storage) (*Storage, error) {
 		}
 
 		storageSystem.redisClient = redisClient
+		storageSystem.DomainMetadata = make(map[string]*DomainMetadata)
 	} else if storage.Location == "memory" {
 		memoryStorage, err := storageSystem.initiazeMemoryStorage()
 		if err != nil {
 			return nil, err
 		}
 
-		storageSystem.domainMetadata = memoryStorage
+		storageSystem.DomainMetadata = memoryStorage
 	}
-	return nil, nil
+	return &storageSystem, nil
 }
 
 func (s *Storage) RegisterDomain(domainName, user_email string, metadata map[string]string) error {
@@ -57,7 +58,7 @@ func (s *Storage) RegisterDomain(domainName, user_email string, metadata map[str
 	}
 
 	if s.storage.Location == "memory" {
-		s.domainMetadata[domainName] = domainMetadata
+		s.DomainMetadata[domainName] = domainMetadata
 	} else if s.storage.Location == "redis" {
 		marshaledBody, err := proto.Marshal(domainMetadata)
 		if err != nil {
@@ -83,11 +84,11 @@ func (s *Storage) UpdateDomain(domainName string, updateBody *DomainMetadata) er
 	}
 
 	if s.storage.Location == "memory" {
-		oldData := s.domainMetadata[domainName]
+		oldData := s.DomainMetadata[domainName]
 		if oldData == nil {
 			return errors.New("no data found for domainName")
 		} else {
-			s.domainMetadata[domainName] = updateBody
+			s.DomainMetadata[domainName] = updateBody
 		}
 	} else if s.storage.Location == "redis" {
 		ctx := context.Background()
@@ -122,11 +123,11 @@ func (s *Storage) RemoveDomain(domainName string) error {
 	}
 
 	if s.storage.Location == "memory" {
-		oldData := s.domainMetadata[domainName]
+		oldData := s.DomainMetadata[domainName]
 		if oldData == nil {
 			return errors.New("no data found for domainName")
 		} else {
-			delete(s.domainMetadata, domainName)
+			delete(s.DomainMetadata, domainName)
 		}
 	} else if s.storage.Location == "redis" {
 		ctx := context.Background()
@@ -202,7 +203,7 @@ func (s *Storage) generateAcmeAccountKeys(domainName, email string, metadata map
 	var accountPrivateKey *ecdsa.PrivateKey
 	var domainMetadata *DomainMetadata
 
-	domainMetadata = s.domainMetadata[domainName]
+	domainMetadata = s.DomainMetadata[domainName]
 	if domainMetadata != nil {
 		var err error
 		csrDER = domainMetadata.CsrDer
@@ -219,6 +220,7 @@ func (s *Storage) generateAcmeAccountKeys(domainName, email string, metadata map
 
 		// then you need a certificate request; here's a simple one - we need
 		// to fill out the template, then create the actual CSR, then parse it
+		// Certificate Signing Request (CSR)
 		csrTemplate := &x509.CertificateRequest{DNSNames: domains}
 		csrDER, err = x509.CreateCertificateRequest(rand.Reader, csrTemplate, certPrivateKey)
 		if err != nil {
