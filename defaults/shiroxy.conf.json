@@ -28,9 +28,13 @@
             "host": "",
             "secure": {
                 "target": "single",
+                "singletartgetmode": "certandkey/shiroxysignlesecure",
                 "certandkey": {
                     "cert": "cert-location",
                     "key": "key-location"
+                },
+                "shiroxysignlesecure": {
+                    "domain": "shikharcode.com"
                 }
             }
         },
@@ -59,7 +63,9 @@
                 "port": "8002",
                 "healthurl": ""
             }
-        ]
+        ],
+        "healthcheckmode": "home/url",
+        "healthchecktriggerduration": 5
     },
     "logging": {
         "enable": true,

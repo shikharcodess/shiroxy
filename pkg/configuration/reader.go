@@ -23,7 +23,7 @@ func ConfigReader(configUrl string) (*models.Config, error) {
 
 	var config models.Config
 	viper.SetConfigName("shiroxy")
-	viper.SetConfigType("json")
+	viper.SetConfigType("yaml")
 
 	file, err := os.Open(configUrl)
 	if err != nil {

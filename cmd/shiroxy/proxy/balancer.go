@@ -10,9 +10,10 @@ import (
 )
 
 type Server struct {
-	URL     *url.URL
-	Alive   bool
-	Shiroxy *Shiroxy
+	URL            *url.URL
+	HealthCheckUrl *url.URL
+	Alive          bool
+	Shiroxy        *Shiroxy
 }
 
 type LoadBalancer struct {
@@ -104,10 +105,6 @@ func (lb *LoadBalancer) serveHTTP(w http.ResponseWriter, r *ShiroxyRequest) {
 			server.Shiroxy.DefaultErrorHandler(w, r.Request, fmt.Errorf("dial up failed, host : %s", r.Request.RemoteAddr))
 		}
 	}
-}
-
-func (lb *LoadBalancer) FallbackHandler(w http.ResponseWriter, r *ShiroxyRequest) {
-
 }
 
 func (lb *LoadBalancer) ServeHTTP(w http.ResponseWriter, r *http.Request) {

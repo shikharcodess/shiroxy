@@ -8,7 +8,7 @@
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/shiroxy/main.go",
             "env": {},
-            "args": ["-c", "${workspaceFolder}/defaults/shiroxy.conf.json"],
+            "args": ["-c", "${workspaceFolder}/defaults/shiroxy.conf.yaml"],
             "showLog": true,
             // "dlvToolPath": "${env:GOPATH}/bin/dlv"
         }

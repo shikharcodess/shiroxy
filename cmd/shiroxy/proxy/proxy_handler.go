@@ -21,6 +21,7 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 			Scheme: configuration.Default.Mode,
 			Host:   fmt.Sprintf("%s:%s", server.Host, server.Port), // The actual address where domain1's server is running
 		}
+
 		servers = append(servers, &Server{
 			URL:   &host,
 			Alive: true,

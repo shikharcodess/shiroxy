@@ -63,8 +63,10 @@ type Frontend struct {
 }
 
 type Backend struct {
-	Name    string `json:"name"`
-	Servers []struct {
+	Name                       string `json:"name"`
+	HealthCheckMode            string `json:"healthcheckmode"`
+	HealthCheckTriggerDuration int    `json:"healthchecktriggerduration"`
+	Servers                    []struct {
 		Id        string `json:"id"`
 		Host      string `json:"host"`
 		Port      string `json:"port"`

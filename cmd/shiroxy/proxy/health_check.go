@@ -16,6 +16,7 @@ type healthChecker struct {
 
 func NewHealthChecker(server []*Server, triggerInterval time.Duration, wg *sync.WaitGroup) *healthChecker {
 	return &healthChecker{
+
 		Servers:               server,
 		healthCheckTrigger:    triggerInterval,
 		stop:                  make(chan bool, 1),
@@ -43,8 +44,6 @@ func (hc *healthChecker) StartHealthCheck() {
 					} else {
 						server.Alive = true
 					}
-
-					// fmt.Println("server.Alive: ", server.URL.String(), " | ", server.Alive)
 				}
 
 			case newDuration := <-hc.changeTriggerInterval:
