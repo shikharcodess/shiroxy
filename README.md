@@ -1,7 +1,7 @@
 <div align="center">
 
 <!-- <h1>IN DEVELOPMENT</h1> -->
-<img src="https://raw.githubusercontent.com/ShikharY10/shiroxy/main/media/shiroxy_logo.png?token=GHSAT0AAAAAACPHT77B7ITJ6WUFTKRB6PC2ZUCKY4Q" alt="shiroxy Logo">
+<img src="https://raw.githubusercontent.com/ShikharY10/shiroxy/main/media/shiroxy_logo_.png" alt="shiroxy Logo">
 
   <h1>A Reverse Proxy with Multiple Domains, Automatic SSL and Dynamic Routing</h1>
 </div>
