@@ -138,56 +138,82 @@ default:
     email: "yshikharfzd10@gmail.com"
     secret: "kjksdnfiwj"
 
+  adminapi:
+    port: "2210"
+
 # This section specifies settings related to the frontend of the reverse proxy
 frontend:
-  backend: "shiroxy-test"
+  # backend: "shiroxy-test"
+  # fallbackbackend: ""
+  httptohttps: true
   bind:
+    - port: "80"
+      host: ""
+      target: "single"
+      secure: false
+      securesetting:
+        singletargetmode: "certandkey" # "shiroxysinglesecure"
+        certandkey:
+          cert: "cert-location"
+          key: "key-location"
+        shiroxysinglesecure:
+          domain: "shikharcode.in"
+
     # This is the port on which shiroxy will listen
-    port: "8080"
+    - port: "443"
 
-    # Host on which shiroxy will listen
-    host: ""
+      # Host on which shiroxy will listen
+      host: ""
 
-    # Domain SSL configuration
-    secure:
       # Target specifies how many domains you want to secure.
       # If you want to secure only one domain, set the value of
       # target to "single". If you want to secure more than one
       # domain, set the value of target to "multiple".
-      target: "single"
-      # target: "multiple"
+      # target: "single"
+      target: "multiple"
 
-      # If you set the value of target to "single", you have to
-      # specify how you want to secure the single domain.
-      # Set the value of singletargetmode to either
-      # "certandkey" or "shiroxysinglesecure". For "certandkey",
-      # you have to provide the SSL certificate. For "shiroxysinglesecure",
-      # you just need to specify the domain you want to secure, and
-      # shiroxy will handle everything.
-      singletargetmode: "certandkey"
+      # This specifies whether to run/expose the frontend of shiroxy
+      # in secure mode or not. If set to true, you are required to
+      # configure the secure settings in the bind section of the frontend section.
+      # secure: false
+      secure: true
+      # Domain SSL configuration
+      securesetting:
+        # This sets the behavior of the server when secure is set to true.
+        # The `secureverify` parameter is used to enforce certificate
+        # verification for secure connections. Possible values are `none`,
+        # `optional`, and `required`.
+        # `none` - No client certificate is requested during the handshake, and if any certificates are sent, they are not verified.
+        # `optional` - A client certificate is requested during the handshake, but it does not require the client to send any certificates.
+        # `required` - A client certificate is requested during the handshake, and at least one valid certificate is required from the client.
+        secureverify: "none"
 
-      # This sets the location of the SSL certificate and SSL key.
-      certandkey:
-        # This sets the certificate's location
-        cert: "cert-location"
+        # If you set the value of target to "single", you have to
+        # specify how you want to secure the single domain.
+        # Set the value of singletargetmode to either
+        # "certandkey" or "shiroxysinglesecure". For "certandkey",
+        # you have to provide the SSL certificate. For "shiroxysinglesecure",
+        # you just need to specify the domain you want to secure, and
+        # shiroxy will handle everything.
+        singletargetmode: "certandkey"
 
-        # This sets the key's location
-        key: "key-location"
+        # This sets the location of the SSL certificate and SSL key.
+        certandkey:
+          # This sets the certificate's location
+          cert: "cert-location"
 
-      # This sets which domain name you want to secure in single mode.
-      # shiroxysinglesecure:
-      #   domain: "shikharcode.com"
+          # This sets the key's location
+          key: "key-location"
+
+        # This sets which domain name you want to secure in single mode.
+        # shiroxysinglesecure:
+        #   domain: "shikharcode.com"
 
   # This is used to manage specific behaviors of HTTP connections and
   # client information forwarding.
   options:
     - "http-server-close"
     - "forwardfor"
-
-  # This specifies whether to run/expose the frontend of shiroxy
-  # in secure mode or not. If set to true, you are required to
-  # configure the secure settings in the bind section of the frontend section.
-  secure: false
 
   # This sets the behavior of the server when secure is set to true.
   # The `secureverify` parameter is used to enforce certificate
@@ -196,11 +222,6 @@ frontend:
   # `none` - No client certificate is requested during the handshake, and if any certificates are sent, they are not verified.
   # `optional` - A client certificate is requested during the handshake, but it does not require the client to send any certificates.
   # `required` - A client certificate is requested during the handshake, and at least one valid certificate is required from the client.
-  secureverify: "required"
-
-  # This indicates which load balancing algorithm to use. Shiroxy supports
-  # `round-robin`, `sticky-session`, and `least-count`.
-  balance: "round-robin"
 
   # Will be supported soon
   # defaultbackend: ""
@@ -211,10 +232,14 @@ frontend:
 # This section holds configuration about the backend to which shiroxy will
 # be forwarding the requests and how it is going to do that.
 backend:
-  # Name of the backend. In future versions, we will support multiple backends,
+  # Optional: Name of the backend. In future versions, we will support multiple backends,
   # which is why we are keeping this parameter from version one of the
   # configuration file.
   name: "shiroxy-test"
+
+  # This indicates which load balancing algorithm to use. Shiroxy supports
+  # `round-robin`, `sticky-session`, and `least-count`.
+  balance: "round-robin"
 
   # This section sets how many servers that backend will have.
   servers:
