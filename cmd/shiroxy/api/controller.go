@@ -1,4 +1,4 @@
-package shiroxyhttp
+package api
 
 import (
 	"net/http"

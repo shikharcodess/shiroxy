@@ -23,47 +23,65 @@ type Analytics struct {
 }
 
 type Default struct {
-	Mode                     string `json:"mode"`
-	LogPath                  string `json:"logpath"`
-	EnableDnsChallengeSolver bool   `json:"enablednschallengesolver"`
-	DataPersistancePath      string `json:"datapersistancepath"`
+	Mode                     string       `json:"mode"`
+	LogPath                  string       `json:"logpath"`
+	EnableDnsChallengeSolver bool         `json:"enablednschallengesolver"`
+	DataPersistancePath      string       `json:"datapersistancepath"`
+	Analytics                Analytics    `json:"analytics"`
+	Storage                  Storage      `json:"storage"`
+	ErrorResponses           ErrorRespons `json:"errorresponses"`
 	TIMEOUT                  struct {
 		Connect string `json:"connect"`
 		Server  string `json:"server"`
 		Client  string `json:"client"`
 	} `json:"timeout"`
-	Analytics      Analytics `json:"analytics"`
-	Storage        Storage   `json:"storage"`
-	ErrorResponses struct {
-		ErrorPageButtonName string `json:"errorpagebuttonname"`
-		ErrorPageButtonUrl  string `json:"errorpagebuttonurl"`
-	}
+
+	User struct {
+		Email  string `json:"email"`
+		Secret string `json:"secret"`
+	} `json:"user"`
+	AdminAPI struct {
+		Port string `json:"port"`
+	} `json:"adminapi"`
+}
+
+type ErrorRespons struct {
+	ErrorPageButtonName string `json:"errorpagebuttonname"`
+	ErrorPageButtonUrl  string `json:"errorpagebuttonurl"`
+}
+
+type FrontendBind struct {
+	Port          string `json:"port"`
+	Host          string `json:"host"`
+	Target        string `json:"target"`
+	Secure        bool   `json:"secure"`
+	SecureSetting struct {
+		// required, optional, none
+		SecureVerify string `json:"secureverify"`
+		// certandkey and shiroxyshinglesecure
+		SingleTargetMode string `json:"singletargetmode"`
+		CertAndKey       struct {
+			Domain string `json:"domain"`
+			Cert   string `json:"cert"`
+			Key    string `json:"key"`
+		} `json:"certandkey"`
+		ShiroxySingleSecure struct {
+			Domain string `json:"domain"`
+		} `json:"shiroxysinglesecure"`
+	} `json:"securesetting"`
 }
 
 type Frontend struct {
-	Bind struct {
-		Port   string `json:"port"`
-		Host   string `json:"host"`
-		Secure struct {
-			Enable     bool   `json:"enable"`
-			Target     string `json:"target"`
-			CertAndKey struct {
-				Cert string `json:"cert"`
-				Key  string `json:"key"`
-			} `json:"certandkey"`
-			MultipleCertAndKeyLocation string `json:"multiplecertandkeylocation"`
-		} `json:"secure"`
-	} `json:"bind"`
-	SecureVerify    string   `json:"secureverify"`
-	Secure          bool     `json:"secure"`
-	Options         []string `json:"options"`
-	DefaultBackend  string   `json:"defaultbackend"`
-	FallbackBackend string   `json:"fallbackbackend"`
-	Balance         string   `json:"balance"`
+	HttpToHttps     bool           `json:"httptohttps"`
+	Bind            []FrontendBind `json:"bind"`
+	Options         []string       `json:"options"`
+	DefaultBackend  string         `json:"defaultbackend"`
+	FallbackBackend string         `json:"fallbackbackend"`
 }
 
 type Backend struct {
 	Name                       string `json:"name"`
+	Balance                    string `json:"balance"`
 	HealthCheckMode            string `json:"healthcheckmode"`
 	HealthCheckTriggerDuration int    `json:"healthchecktriggerduration"`
 	Servers                    []struct {

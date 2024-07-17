@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type healthChecker struct {
+type HealthChecker struct {
 	Servers               []*Server
 	healthCheckTrigger    time.Duration
 	stop                  chan bool
@@ -14,9 +14,8 @@ type healthChecker struct {
 	wg                    *sync.WaitGroup
 }
 
-func NewHealthChecker(server []*Server, triggerInterval time.Duration, wg *sync.WaitGroup) *healthChecker {
-	return &healthChecker{
-
+func NewHealthChecker(server []*Server, triggerInterval time.Duration, wg *sync.WaitGroup) *HealthChecker {
+	return &HealthChecker{
 		Servers:               server,
 		healthCheckTrigger:    triggerInterval,
 		stop:                  make(chan bool, 1),
@@ -25,7 +24,7 @@ func NewHealthChecker(server []*Server, triggerInterval time.Duration, wg *sync.
 	}
 }
 
-func (hc *healthChecker) StartHealthCheck() {
+func (hc *HealthChecker) StartHealthCheck() {
 	hc.wg.Add(1)
 	go func() {
 		defer hc.wg.Done()
@@ -57,10 +56,10 @@ func (hc *healthChecker) StartHealthCheck() {
 	}()
 }
 
-func (hc *healthChecker) StopHealthChecker() {
+func (hc *HealthChecker) StopHealthChecker() {
 	hc.stop <- true
 }
 
-func (hc *healthChecker) UpdateTicker(d time.Duration) {
+func (hc *HealthChecker) UpdateTicker(d time.Duration) {
 	hc.changeTriggerInterval <- d
 }

@@ -1,4 +1,4 @@
-package shiroxyhttp
+package api
 
 type Domains struct {
 	Name   string

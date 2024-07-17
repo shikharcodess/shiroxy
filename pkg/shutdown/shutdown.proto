@@ -1,4 +1,5 @@
-// protoc --go_out=. ./pkg/shutdown/shutdown.proto
+// protoc --plugin=protoc-gen-go=/home/shikharcode/go/bin/protoc-gen-go --go_out=. ./pkg/shutdown/shutdown.pr
+// oto
 
 syntax = "proto3";
 
@@ -7,8 +8,8 @@ package main;
 option go_package= "./pkg/shutdown";
 
 message ShutdownMetadata {
-    string domain_metadata = 1;
-    string system_data = 2;
+    bytes domain_metadata = 1;
+    bytes system_data = 2;
 }
 
 // message DomainMetadata {

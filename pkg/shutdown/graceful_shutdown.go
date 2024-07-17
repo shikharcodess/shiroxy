@@ -1,6 +1,7 @@
 package shutdown
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"shiroxy/pkg/models"
 	"sync"
 	"syscall"
-	"time"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -60,7 +60,7 @@ func HandleGracefulShutdown(fromdefer bool, panicData interface{}, configuration
 			}
 
 			dataPersistance := domains.DataPersistance{
-				Datetime: time.Now().String(),
+				Datetime: "",
 				Domains:  domainMetadataArray,
 			}
 
@@ -70,8 +70,8 @@ func HandleGracefulShutdown(fromdefer bool, panicData interface{}, configuration
 			}
 
 			shutdownMetadata := ShutdownMetadata{
-				DomainMetadata: string(storageData),
-				SystemData:     string(analyticsJsonMarshaledData),
+				DomainMetadata: storageData,
+				SystemData:     analyticsJsonMarshaledData,
 			}
 
 			shutdownMarshaledMetadata, err := proto.Marshal(&shutdownMetadata)
@@ -79,7 +79,9 @@ func HandleGracefulShutdown(fromdefer bool, panicData interface{}, configuration
 				logHandler.LogError(err.Error(), "Shutdown", "")
 			}
 
-			err = cleanup(fmt.Sprintf("%s/persistance.shiroxy", configuration.Default.DataPersistancePath), string(shutdownMarshaledMetadata))
+			base64EncodedData := base64.StdEncoding.EncodeToString(shutdownMarshaledMetadata)
+
+			err = cleanup(fmt.Sprintf("%s/persistance.shiroxy", configuration.Default.DataPersistancePath), base64EncodedData)
 			if err != nil {
 				logHandler.Log(err.Error(), "Shutdown", "Error")
 			}
@@ -112,7 +114,6 @@ func cleanup(filePath, data string) error {
 		return err
 	}
 	defer f.Close()
-
 	_, err = f.WriteString(data)
 	if err != nil {
 		return err

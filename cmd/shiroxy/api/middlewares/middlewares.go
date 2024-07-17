@@ -14,12 +14,12 @@ type Middlewares struct {
 }
 
 type ApiResponse struct {
-	Success  bool   `json:"success"`
-	Error    any    `json:"error"`
-	Data     any    `json:"data"`
-	Warning  string `json:"warning"`
-	Object   string `json:"object"`
-	Metadata any    `json:"metadata"`
+	Success  bool           `json:"success"`
+	Error    string         `json:"error"`
+	Data     map[string]any `json:"data"`
+	Warning  string         `json:"warning"`
+	Object   string         `json:"object"`
+	Metadata any            `json:"metadata"`
 }
 
 func InitializeMiddleware(logHandler *logger.Logger, moduleName string) (*Middlewares, error) {

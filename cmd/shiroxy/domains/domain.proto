@@ -16,7 +16,8 @@ message DomainMetadata {
   bytes combined_cert = 7;
   bytes cert_pem_block = 8;
   bytes key_pem_block = 9;
-  map<string, string> metadata = 10;
+  string dns_challenge_key = 10;
+  map<string, string> metadata = 11;
 }
 
 message DataPersistance {

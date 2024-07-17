@@ -16,15 +16,21 @@ type Server struct {
 	Shiroxy        *Shiroxy
 }
 
+type Frontends struct {
+	handlerFunc http.HandlerFunc
+}
+
 type LoadBalancer struct {
 	MaxRetry        int
 	RetryCounter    int
 	configuration   *models.Config
 	Servers         []*Server
+	Frontends       map[string]*Frontends
 	Current         int
 	Mutex           sync.Mutex
 	ConnectionCount map[*Server]int
 	StickySessions  map[string]*Server
+	HealthChecker   *HealthChecker
 }
 
 func NewLoadBalancer(configuration *models.Config, servers []*Server, wg *sync.WaitGroup) *LoadBalancer {
@@ -36,8 +42,10 @@ func NewLoadBalancer(configuration *models.Config, servers []*Server, wg *sync.W
 		RetryCounter:    0,
 		configuration:   configuration,
 		Servers:         servers,
+		HealthChecker:   healthChecker,
 		ConnectionCount: make(map[*Server]int),
 		StickySessions:  make(map[string]*Server),
+		Frontends:       make(map[string]*Frontends),
 	}
 }
 
@@ -87,11 +95,11 @@ func (lb *LoadBalancer) serveHTTP(w http.ResponseWriter, r *ShiroxyRequest) {
 	clientIP := r.Request.RemoteAddr
 
 	switch {
-	case lb.configuration.Frontend.Balance == "round-robin":
+	case lb.configuration.Backend.Balance == "round-robin":
 		server = lb.getNextServerRoundRobin()
-	case lb.configuration.Frontend.Balance == "sticky-session":
+	case lb.configuration.Backend.Balance == "sticky-session":
 		server = lb.getStickySessionServer(clientIP)
-	case lb.configuration.Frontend.Balance == "least-count":
+	case lb.configuration.Backend.Balance == "least-count":
 		server = lb.getLeastConnectionServer()
 	}
 

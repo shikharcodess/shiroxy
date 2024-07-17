@@ -7,10 +7,12 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/http"
 	"shiroxy/pkg/models"
+	"sync"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/mholt/acmez/acme"
@@ -19,14 +21,17 @@ import (
 )
 
 type Storage struct {
-	storage        *models.Storage
-	redisClient    *redis.Client
-	DomainMetadata map[string]*DomainMetadata
+	storage           *models.Storage
+	redisClient       *redis.Client
+	DnsChallengeToken map[string]string
+	DomainMetadata    map[string]*DomainMetadata
 }
 
-func InitializeStorage(storage *models.Storage) (*Storage, error) {
+func InitializeStorage(storage *models.Storage, wg *sync.WaitGroup) (*Storage, error) {
 	storageSystem := Storage{
-		storage: storage,
+		storage:           storage,
+		DnsChallengeToken: make(map[string]string),
+		// challengeSolvers:  []*ChallengeSolvers{},
 	}
 	if storage.Location == "redis" {
 		redisClient, err := storageSystem.connectRedis()
@@ -44,38 +49,43 @@ func InitializeStorage(storage *models.Storage) (*Storage, error) {
 
 		storageSystem.DomainMetadata = memoryStorage
 	}
+	// storageSystem.challengeSolver(wg)
 	return &storageSystem, nil
 }
 
-func (s *Storage) RegisterDomain(domainName, user_email string, metadata map[string]string) error {
+func (s *Storage) RegisterDomain(domainName, user_email string, metadata map[string]string) (string, error) {
 	if len(domainName) == 0 {
-		return errors.New("domainName should not be empty")
+		return "", errors.New("domainName should not be empty")
 	}
 
 	domainMetadata, err := s.generateAcmeAccountKeys(domainName, user_email, metadata)
 	if err != nil {
-		return err
+		return "", err
 	}
+
+	fmt.Println("keys generated")
 
 	if s.storage.Location == "memory" {
 		s.DomainMetadata[domainName] = domainMetadata
 	} else if s.storage.Location == "redis" {
 		marshaledBody, err := proto.Marshal(domainMetadata)
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		ctx := context.Background()
 		result := s.redisClient.Set(ctx, domainName, marshaledBody, 0)
 		if result.Err() != nil {
-			return result.Err()
+			return "", result.Err()
 		}
 	}
+
+	fmt.Println("domain metadata saved")
 
 	// TODO: June 30 10:34 AM - Handle Certificate Storage, generation is already handled.
 	s.generateCertificate(domainMetadata)
 
-	return nil
+	return domainMetadata.DnsChallengeKey, nil
 }
 
 func (s *Storage) UpdateDomain(domainName string, updateBody *DomainMetadata) error {
@@ -188,49 +198,12 @@ func (s *Storage) initiazeMemoryStorage() (map[string]*DomainMetadata, error) {
 	return memoryMap, nil
 }
 
-type DomainCertificateMetadata struct {
-	Account  acme.Account
-	CSRDer   []byte
-	Domains  []string
-	Metadata map[string]string
-}
-
 func (s *Storage) generateAcmeAccountKeys(domainName, email string, metadata map[string]string) (*DomainMetadata, error) {
-	// put your domains here (IDNs must be in ASCII form)
-	domains := []string{domainName}
-
-	var csrDER []byte
-	var accountPrivateKey *ecdsa.PrivateKey
 	var domainMetadata *DomainMetadata
 
 	domainMetadata = s.DomainMetadata[domainName]
-	if domainMetadata != nil {
-		var err error
-		csrDER = domainMetadata.CsrDer
-		accountPrivateKey, err = x509.ParseECPrivateKey(domainMetadata.AcmeAccountPrivateKey)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// first you need a private key for your certificate
-		certPrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		if err != nil {
-			return nil, fmt.Errorf("generating certificate key: %v", err)
-		}
-
-		// then you need a certificate request; here's a simple one - we need
-		// to fill out the template, then create the actual CSR, then parse it
-		// Certificate Signing Request (CSR)
-		csrTemplate := &x509.CertificateRequest{DNSNames: domains}
-		csrDER, err = x509.CreateCertificateRequest(rand.Reader, csrTemplate, certPrivateKey)
-		if err != nil {
-			return nil, fmt.Errorf("generating CSR: %v", err)
-		}
-
-		// before you can get a cert, you'll need an account registered with
-		// the ACME CA - it also needs a private key and should obviously be
-		// different from any key used for certificates!
-		accountPrivateKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if domainMetadata == nil {
+		accountPrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if err != nil {
 			return nil, fmt.Errorf("generating account key: %v", err)
 		}
@@ -239,41 +212,16 @@ func (s *Storage) generateAcmeAccountKeys(domainName, email string, metadata map
 		if err != nil {
 			return nil, err
 		}
+
 		domainMetadata = &DomainMetadata{
 			Domain:                domainName,
 			Email:                 email,
 			Metadata:              metadata,
-			CsrDer:                csrDER,
 			AcmeAccountPrivateKey: privateKeyBytes,
 		}
 	}
 
 	return domainMetadata, nil
-
-	// fmt.Println(strings.TrimSpace(email))
-	// var emails []string = []string{}
-	// // emails = append(emails, "yshikharfzd10@gmail.com")
-	// // if len(email) > 0 {
-	// // 	emails = append(emails, email)
-	// // }
-
-	// fmt.Println("emails ===========")
-	// fmt.Println(emails)
-	// fmt.Println("length of emails: ", len(emails))
-
-	// account := acme.Account{
-	// 	Contact:              emails,
-	// 	TermsOfServiceAgreed: true,
-	// 	PrivateKey:           accountPrivateKey,
-	// }
-
-	// return &DomainCertificateMetadata{
-	// 	Domains: []string{domainName},
-	// 	CSRDer:  csrDER,
-
-	// 	Account:  account,
-	// 	Metadata: metadata,
-	// }, nil
 }
 
 func (s *Storage) generateCertificate(domainMetadata *DomainMetadata) error {
@@ -283,15 +231,13 @@ func (s *Storage) generateCertificate(domainMetadata *DomainMetadata) error {
 		return err
 	}
 	savedAccount := acme.Account{
-		Contact:              []string{fmt.Sprintf("mailto:%s", &domainMetadata.Email)},
+		Contact:              []string{fmt.Sprintf("mailto:%s", domainMetadata.Email)},
 		TermsOfServiceAgreed: true,
 		PrivateKey:           accountPrivateKey,
 	}
 
-	// a context allows us to cancel long-running ops
 	ctx := context.Background()
 
-	// Logging is important - replace with your own zap logger
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		return err
@@ -314,9 +260,6 @@ func (s *Storage) generateCertificate(domainMetadata *DomainMetadata) error {
 
 	account, err = client.GetAccount(ctx, savedAccount)
 	if err != nil {
-		// if the account is new, we need to create it; only do this once!
-		// then be sure to securely store the account key and metadata so
-		// you can reuse it later!
 		account, err = client.NewAccount(ctx, savedAccount)
 		if err != nil {
 			return fmt.Errorf("new account: %v", err)
@@ -326,18 +269,12 @@ func (s *Storage) generateCertificate(domainMetadata *DomainMetadata) error {
 	// now we can actually get a cert; first step is to create a new order
 	var ids []acme.Identifier
 	ids = append(ids, acme.Identifier{Type: "dns", Value: domainMetadata.Domain})
-	// for _, domain := range domainCertificateMetadata.Domains {
-	// 	ids = append(ids, acme.Identifier{Type: "dns", Value: domain})
-	// }
 
-	fmt.Println("2")
 	order := acme.Order{Identifiers: ids}
 	order, err = client.NewOrder(ctx, account, order)
 	if err != nil {
 		return fmt.Errorf("creating new order: %v", err)
 	}
-
-	fmt.Println("3")
 
 	// each identifier on the order should now be associated with an
 	// authorization object; we must make the authorization "valid"
@@ -348,14 +285,16 @@ func (s *Storage) generateCertificate(domainMetadata *DomainMetadata) error {
 			return fmt.Errorf("getting authorization %q: %v", authzURL, err)
 		}
 
-		fmt.Println("=========================== authzURL: ", authzURL)
+		var preferedChallenge acme.Challenge
+		for _, challenges := range authz.Challenges {
+			if challenges.Type == "http-01" {
+				preferedChallenge = challenges
+				break
+			}
+		}
 
-		// pick any available challenge to solve
-		challenge := authz.Challenges[0]
-
-		fmt.Println("challenge: ", challenge.Identifier)
-		fmt.Println("K ===== ", challenge.KeyAuthorization)
-		fmt.Println("T ===== ", challenge.Token)
+		s.DnsChallengeToken[preferedChallenge.Token] = domainMetadata.Domain
+		domainMetadata.DnsChallengeKey = preferedChallenge.KeyAuthorization
 
 		// at this point, you must prepare to solve the challenge; how
 		// you do this depends on the challenge (see spec for details).
@@ -366,12 +305,10 @@ func (s *Storage) generateCertificate(domainMetadata *DomainMetadata) error {
 
 		// once you are ready to solve the challenge, let the ACME
 		// server know it should begin
-		challenge, err = client.InitiateChallenge(ctx, account, challenge)
+		preferedChallenge, err = client.InitiateChallenge(ctx, account, preferedChallenge)
 		if err != nil {
-			return fmt.Errorf("initiating challenge %q: %v", challenge.URL, err)
+			return fmt.Errorf("initiating challenge %q: %v", preferedChallenge.URL, err)
 		}
-
-		fmt.Println("challenge: ", challenge)
 
 		// now the challenge should be under way; at this point, we can
 		// continue initiating all the other challenges so that they are
@@ -380,17 +317,29 @@ func (s *Storage) generateCertificate(domainMetadata *DomainMetadata) error {
 		// simple, so we will just do one at a time; we wait for the ACME
 		// server to tell us the challenge has been solved by polling the
 		// authorization status
+
 		authz, err = client.PollAuthorization(ctx, account, authz)
 		if err != nil {
 			return fmt.Errorf("solving challenge: %v", err)
 		}
-
-		// if we got here, then the challenge was solved successfully, hurray!
 	}
 
-	fmt.Println("4")
+	// first you need a private key for your certificate
+	certPrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return fmt.Errorf("generating certificate key: %v", err)
+	}
 
-	csr, err := x509.ParseCertificateRequest(domainMetadata.CsrDer)
+	// then you need a certificate request; here's a simple one - we need
+	// to fill out the template, then create the actual CSR, then parse it
+	// Certificate Signing Request (CSR)
+	csrTemplate := &x509.CertificateRequest{DNSNames: []string{domainMetadata.Domain}}
+	csrDER, err := x509.CreateCertificateRequest(rand.Reader, csrTemplate, certPrivateKey)
+	if err != nil {
+		return fmt.Errorf("generating CSR: %v", err)
+	}
+
+	csr, err := x509.ParseCertificateRequest(csrDER)
 	if err != nil {
 		return fmt.Errorf("parsing generated CSR: %v", err)
 	}
@@ -414,9 +363,48 @@ func (s *Storage) generateCertificate(domainMetadata *DomainMetadata) error {
 	}
 
 	// all done! store it somewhere safe, along with its key
+	var fullChain []byte
 	for _, cert := range certChains {
-		fmt.Printf("Certificate %q:\n%s\n\n", cert.URL, cert.ChainPEM)
+		// certPEM := fmt.Sprintf(`
+		// 	-----BEGIN CERTIFICATE-----
+		// 	%s
+		// 	-----END CERTIFICATE-----
+		// 	`, cert.ChainPEM)
+		// certBytes := []byte(certPEM)
+		// fullChain = append(fullChain, certBytes...)
+		fullChain = append(fullChain, cert.ChainPEM...)
 	}
-	// TODO: June 30 10:34 AM - Handle Certificate Storage, generation is already handled.
+
+	// Marshal the private key to DER format
+	certPrivateKeyBytes, err := x509.MarshalECPrivateKey(certPrivateKey)
+	if err != nil {
+		return fmt.Errorf("marshaling private key: %v", err)
+	}
+
+	// // Encode the private key to PEM format
+	privateKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: certPrivateKeyBytes,
+	})
+
+	// keyPEM := fmt.Sprintf(`
+	// -----BEGIN PRIVATE KEY-----
+	// %s
+	// -----END PRIVATE KEY-----
+	// `, privateKeyPEM)
+
+	// fmt.Printf("Certificate %q:\n%s\n\n", cert.URL, cert.ChainPEM)
+	domainMetadata.CertPemBlock = fullChain
+	// domainMetadata.KeyPemBlock = []byte(keyPEM)
+	domainMetadata.KeyPemBlock = privateKeyPEM
+	domainMetadata.Metadata = make(map[string]string)
+	domainMetadata.Metadata["cert_url"] = certChains[0].URL
+	domainMetadata.Metadata["cert_ca"] = certChains[0].CA
+	domainMetadata.Status = "active"
+
+	// fmt.Println(string(domainMetadata.CertPemBlock))
+	// fmt.Println(string(domainMetadata.KeyPemBlock))
+
+	// utils.LogStruct(domainMetadata)
 	return nil
 }

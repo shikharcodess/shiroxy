@@ -24,7 +24,7 @@ func (d *DomainController) RegisterDomain(c *gin.Context) {
 	if err != nil {
 		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 			Success: false,
-			Error:   err,
+			Error:   err.Error(),
 		}, 400)
 		return
 	}
@@ -37,16 +37,19 @@ func (d *DomainController) RegisterDomain(c *gin.Context) {
 		return
 	}
 
-	err = d.Storage.RegisterDomain(requestBody.Domain, requestBody.Email, requestBody.Metadata)
+	dnsKey, err := d.Storage.RegisterDomain(requestBody.Domain, requestBody.Email, requestBody.Metadata)
 	if err != nil {
 		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 			Success: false,
-			Error:   err,
+			Error:   err.Error(),
 		}, 400)
 		return
 	} else {
 		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 			Success: true,
+			Data: map[string]any{
+				"dns_key": dnsKey,
+			},
 		}, 200)
 	}
 }
@@ -61,7 +64,7 @@ func (d *DomainController) ForceSSL(c *gin.Context) {
 	if err != nil {
 		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 			Success: false,
-			Error:   err,
+			Error:   err.Error(),
 		}, 400)
 		return
 	}
@@ -69,7 +72,7 @@ func (d *DomainController) ForceSSL(c *gin.Context) {
 	if requestBody.Domain == "" {
 		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 			Success: false,
-			Error:   err,
+			Error:   err.Error(),
 		}, 400)
 		return
 	}
@@ -78,7 +81,7 @@ func (d *DomainController) ForceSSL(c *gin.Context) {
 	if err != nil {
 		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 			Success: false,
-			Error:   err,
+			Error:   err.Error(),
 		}, 400)
 		return
 	}

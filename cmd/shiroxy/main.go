@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"shiroxy/cmd/shiroxy/analytics"
+	"shiroxy/cmd/shiroxy/api"
 	"shiroxy/cmd/shiroxy/domains"
 	"shiroxy/cmd/shiroxy/proxy"
 	"shiroxy/pkg/cli"
@@ -38,7 +39,7 @@ func main() {
 	}
 
 	// Starting storage service for storing domain and user data
-	storageHandler, err := domains.InitializeStorage(&configuration.Default.Storage)
+	storageHandler, err := domains.InitializeStorage(&configuration.Default.Storage, &wg)
 	if err != nil {
 		logHandler.LogError(err.Error(), "Startup", "main")
 	}
@@ -54,6 +55,10 @@ func main() {
 	if err != nil {
 		logHandler.LogError(err.Error(), "Startup", "main")
 	}
+
+	// Loading data that was persisted during last shutdown or failover
+	shutdown.LoadShutdownPersistence(*logHandler, configuration, storageHandler, analyticsConfiguration)
+
 	// Starting service that take care of graceful shutdown by doing cleanup and data persistance
 	wg.Add(1)
 	go func() {
@@ -67,7 +72,12 @@ func main() {
 		}
 	}()
 
-	proxy.StartShiroxyHandler(configuration, storageHandler, logHandler, &wg)
+	laodBalancer, err := proxy.StartShiroxyHandler(configuration, storageHandler, logHandler, &wg)
+	if err != nil {
+		panic(err)
+	}
+
+	api.StartShiroxyAPI(*configuration, laodBalancer.HealthChecker, storageHandler, analyticsConfiguration, logHandler, &wg)
 
 	wg.Wait()
 }
