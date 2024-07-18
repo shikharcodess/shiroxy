@@ -1,0 +1,4 @@
+./build/
+persistene.shiroxy
+/defaults/shiroxy.conf.json
+/defaults/shiroxy.conf.toml

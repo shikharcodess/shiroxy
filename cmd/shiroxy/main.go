@@ -17,6 +17,10 @@ import (
 	"time"
 )
 
+var ACME_SERVER_URL string
+var INSECURE_SKIP_VERIFY string
+var VERSION string
+
 func main() {
 	wg := sync.WaitGroup{}
 
@@ -39,7 +43,7 @@ func main() {
 	}
 
 	// Starting storage service for storing domain and user data
-	storageHandler, err := domains.InitializeStorage(&configuration.Default.Storage, &wg)
+	storageHandler, err := domains.InitializeStorage(&configuration.Default.Storage, ACME_SERVER_URL, INSECURE_SKIP_VERIFY, &wg)
 	if err != nil {
 		logHandler.LogError(err.Error(), "Startup", "main")
 	}

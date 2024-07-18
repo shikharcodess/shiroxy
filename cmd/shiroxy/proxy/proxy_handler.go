@@ -137,7 +137,6 @@ func createMultipleTargetServer(bindData *models.FrontendBind, storage *domains.
 
 func createSingleTargetServer(bindData *models.FrontendBind, storage *domains.Storage, handlerFunc http.HandlerFunc, logHandler *logger.Logger, wg *sync.WaitGroup) (server *http.Server, secure bool, err error) {
 	if bindData.Secure {
-		fmt.Println("single and secured")
 		var tlsConfig *tls.Config
 		if bindData.SecureSetting.SingleTargetMode == "certandkey" {
 			tlsConfig = &tls.Config{
@@ -181,7 +180,6 @@ func createSingleTargetServer(bindData *models.FrontendBind, storage *domains.St
 
 		return server, true, nil
 	} else {
-		fmt.Println("single and unsecured")
 		server := &http.Server{
 			Addr:    fmt.Sprintf("%s:%s", bindData.Host, bindData.Port),
 			Handler: handlerFunc,

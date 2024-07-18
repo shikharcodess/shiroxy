@@ -81,7 +81,7 @@ func HandleGracefulShutdown(fromdefer bool, panicData interface{}, configuration
 
 			base64EncodedData := base64.StdEncoding.EncodeToString(shutdownMarshaledMetadata)
 
-			err = cleanup(fmt.Sprintf("%s/persistance.shiroxy", configuration.Default.DataPersistancePath), base64EncodedData)
+			err = cleanup(fmt.Sprintf("%s/persistence.shiroxy", configuration.Default.DataPersistancePath), base64EncodedData)
 			if err != nil {
 				logHandler.Log(err.Error(), "Shutdown", "Error")
 			}

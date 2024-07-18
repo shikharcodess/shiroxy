@@ -21,18 +21,26 @@ import (
 )
 
 type Storage struct {
-	storage           *models.Storage
-	redisClient       *redis.Client
-	DnsChallengeToken map[string]string
-	DomainMetadata    map[string]*DomainMetadata
+	ACME_SERVER_URL      string
+	INSECURE_SKIP_VERIFY bool
+	storage              *models.Storage
+	redisClient          *redis.Client
+	DnsChallengeToken    map[string]string
+	DomainMetadata       map[string]*DomainMetadata
 }
 
-func InitializeStorage(storage *models.Storage, wg *sync.WaitGroup) (*Storage, error) {
+func InitializeStorage(storage *models.Storage, acmeServerUrl string, insecureSkipVerify string, wg *sync.WaitGroup) (*Storage, error) {
 	storageSystem := Storage{
-		storage:           storage,
-		DnsChallengeToken: make(map[string]string),
+		storage:              storage,
+		DnsChallengeToken:    make(map[string]string),
+		ACME_SERVER_URL:      acmeServerUrl,
+		INSECURE_SKIP_VERIFY: true,
 		// challengeSolvers:  []*ChallengeSolvers{},
 	}
+	if insecureSkipVerify == "no" {
+		storageSystem.INSECURE_SKIP_VERIFY = false
+	}
+
 	if storage.Location == "redis" {
 		redisClient, err := storageSystem.connectRedis()
 		if err != nil {
@@ -245,11 +253,11 @@ func (s *Storage) generateCertificate(domainMetadata *DomainMetadata) error {
 
 	// now we can make our low-level ACME client
 	client := &acme.Client{
-		Directory: "https://127.0.0.1:14000/dir", // default pebble endpoint
+		Directory: s.ACME_SERVER_URL, // default pebble endpoint
 		HTTPClient: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true, // REMOVE THIS FOR PRODUCTION USE!
+					InsecureSkipVerify: s.INSECURE_SKIP_VERIFY, // REMOVE THIS FOR PRODUCTION USE!
 				},
 			},
 		},
