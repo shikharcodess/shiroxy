@@ -1,4 +1,12 @@
-./build/
+/.vscode/
+build/
 persistene.shiroxy
-/defaults/shiroxy.conf.json
-/defaults/shiroxy.conf.toml
+defaults/shiroxy.conf.json
+defaults/shiroxy.conf.toml
+live/
+temp/pebble/
+temp/fuck.yaml
+temp/haproxy.conf
+temp/implementation.md
+temp/requirement.md
+temp/set.js
