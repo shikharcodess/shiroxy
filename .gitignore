@@ -1,6 +1,7 @@
 /.vscode/
 build/
-persistene.shiroxy
+implementations/
+persistence.shiroxy
 defaults/shiroxy.conf.json
 defaults/shiroxy.conf.toml
 live/
