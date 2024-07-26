@@ -72,6 +72,7 @@ func HandleGracefulShutdown(fromdefer bool, panicData interface{}, configuration
 			shutdownMetadata := ShutdownMetadata{
 				DomainMetadata: storageData,
 				SystemData:     analyticsJsonMarshaledData,
+				WebhookSecret:  storage.WebhookSecret,
 			}
 
 			shutdownMarshaledMetadata, err := proto.Marshal(&shutdownMetadata)

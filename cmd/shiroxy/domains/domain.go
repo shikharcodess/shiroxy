@@ -21,6 +21,7 @@ import (
 )
 
 type Storage struct {
+	WebhookSecret        string
 	ACME_SERVER_URL      string
 	INSECURE_SKIP_VERIFY bool
 	storage              *models.Storage

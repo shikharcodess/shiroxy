@@ -9,7 +9,8 @@ option go_package= "./pkg/shutdown";
 
 message ShutdownMetadata {
     bytes domain_metadata = 1;
-    bytes system_data = 2;
+    string webhook_secret = 2;
+    bytes system_data = 3;
 }
 
 // message DomainMetadata {

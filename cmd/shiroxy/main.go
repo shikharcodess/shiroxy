@@ -10,6 +10,7 @@ import (
 	"shiroxy/cmd/shiroxy/api"
 	"shiroxy/cmd/shiroxy/domains"
 	"shiroxy/cmd/shiroxy/proxy"
+	"shiroxy/cmd/shiroxy/webhook"
 	"shiroxy/pkg/cli"
 	"shiroxy/pkg/logger"
 	"shiroxy/pkg/shutdown"
@@ -75,6 +76,11 @@ func main() {
 			shutdown.HandleGracefulShutdown(true, r, configuration, storageHandler, logHandler, analyticsConfiguration, &wg)
 		}
 	}()
+
+	webhookHandler, err := webhook.StartWebhookHandler(configuration.Webhook, logHandler, &wg, storageHandler.WebhookSecret)
+	if err != nil {
+		logHandler.LogError(err.Error(), "Webhook", "main")
+	}
 
 	laodBalancer, err := proxy.StartShiroxyHandler(configuration, storageHandler, logHandler, &wg)
 	if err != nil {

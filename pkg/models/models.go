@@ -1,12 +1,12 @@
 package models
 
 type Config struct {
-	Default  Default   `json:"default"`
-	Frontend Frontend  `json:"frontend"`
-	Backend  Backend   `json:"backend"`
-	Logging  Logging   `json:"logging"`
-	Webhook  []Webhook `json:"webhook"`
-	Health   Health    `json:"health"`
+	Default  Default  `json:"default"`
+	Frontend Frontend `json:"frontend"`
+	Backend  Backend  `json:"backend"`
+	Logging  Logging  `json:"logging"`
+	Webhook  Webhook  `json:"webhook"`
+	Health   Health   `json:"health"`
 }
 
 type Storage struct {

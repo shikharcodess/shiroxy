@@ -43,5 +43,6 @@ func LoadShutdownPersistence(logHandler logger.Logger, configuration *models.Con
 		storage.DomainMetadata[domainMetadata.Domain] = domainMetadata
 	}
 
+	storage.WebhookSecret = shutDown.WebhookSecret
 	logHandler.LogSuccess(fmt.Sprintf("Total %d Retrieved\n", len(domainDataPersistence.Domains)), "", "")
 }

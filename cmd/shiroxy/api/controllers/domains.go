@@ -3,13 +3,15 @@ package controllers
 import (
 	"shiroxy/cmd/shiroxy/api/middlewares"
 	"shiroxy/cmd/shiroxy/domains"
+	"shiroxy/cmd/shiroxy/webhook"
 
 	"github.com/gin-gonic/gin"
 )
 
 type DomainController struct {
-	Storage     *domains.Storage
-	Middlewares *middlewares.Middlewares
+	Storage        *domains.Storage
+	Middlewares    *middlewares.Middlewares
+	WebhookHandler *webhook.WebhookHandler
 }
 
 type registerDomainRequestBody struct {
@@ -39,12 +41,18 @@ func (d *DomainController) RegisterDomain(c *gin.Context) {
 
 	dnsKey, err := d.Storage.RegisterDomain(requestBody.Domain, requestBody.Email, requestBody.Metadata)
 	if err != nil {
+		d.WebhookHandler.Fire("domain-register-failed", map[string]string{
+			"domain": requestBody.Domain,
+		})
 		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 			Success: false,
 			Error:   err.Error(),
 		}, 400)
 		return
 	} else {
+		d.WebhookHandler.Fire("domain-register-success", map[string]string{
+			"domain": requestBody.Domain,
+		})
 		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 			Success: true,
 			Data: map[string]any{

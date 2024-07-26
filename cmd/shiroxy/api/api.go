@@ -7,6 +7,7 @@ import (
 	"shiroxy/cmd/shiroxy/api/routes"
 	"shiroxy/cmd/shiroxy/domains"
 	"shiroxy/cmd/shiroxy/proxy"
+	"shiroxy/cmd/shiroxy/webhook"
 	"shiroxy/pkg/logger"
 	"shiroxy/pkg/models"
 	"sync"
@@ -21,7 +22,7 @@ type shiroxyAPI struct {
 	logHandler       *logger.Logger
 }
 
-func StartShiroxyAPI(config models.Config, healthChecker *proxy.HealthChecker, domainStorage *domains.Storage, analyticsHandler *analytics.AnalyticsConfiguration, loghandler *logger.Logger, wg *sync.WaitGroup) {
+func StartShiroxyAPI(config models.Config, healthChecker *proxy.HealthChecker, domainStorage *domains.Storage, analyticsHandler *analytics.AnalyticsConfiguration, loghandler *logger.Logger, webhookHandler *webhook.WebhookHandler, wg *sync.WaitGroup) {
 	apiHndler := shiroxyAPI{
 		healthChecker:    healthChecker,
 		domainStorage:    domainStorage,
@@ -40,8 +41,9 @@ func StartShiroxyAPI(config models.Config, healthChecker *proxy.HealthChecker, d
 	account := gin.Accounts{}
 	account[config.Default.User.Email] = config.Default.User.Secret
 
-	router := gin.New()
+	newRouter := gin.New()
 
+	router := newRouter.Group("/v1")
 	router.GET("/health", func(ctx *gin.Context) {
 		ctx.JSON(200, gin.H{
 			"status": "healthy",
@@ -50,7 +52,7 @@ func StartShiroxyAPI(config models.Config, healthChecker *proxy.HealthChecker, d
 
 	router.Use(gin.BasicAuth(account))
 
-	routes.DomainRoutes(router, middleware, domainStorage)
+	routes.DomainRoutes(router, middleware, domainStorage, webhookHandler)
 	// routes.SSLRoutes(router, domainStorage)
 
 	// Todo: remove this in final version ===============
@@ -71,7 +73,7 @@ func StartShiroxyAPI(config models.Config, healthChecker *proxy.HealthChecker, d
 			adminAPIPort = config.Default.AdminAPI.Port
 		}
 
-		err := router.Run(fmt.Sprintf(":%s", adminAPIPort))
+		err := newRouter.Run(fmt.Sprintf(":%s", adminAPIPort))
 		if err != nil {
 			loghandler.LogError(fmt.Sprintf("error starting admin API, %s", err.Error()), "ADMIN API", "ERROR")
 		}
