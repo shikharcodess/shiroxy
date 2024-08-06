@@ -15,7 +15,7 @@ import (
 func LoadShutdownPersistence(logHandler logger.Logger, configuration *models.Config, storage *domains.Storage, analyticsConfiguration *analytics.AnalyticsConfiguration) {
 	fileContent, err := os.ReadFile(fmt.Sprintf("%s/persistence.shiroxy", configuration.Default.DataPersistancePath))
 	if err != nil {
-		logHandler.LogError(err.Error(), "ShutDown", "Load Persistence S1")
+		// logHandler.LogError(err.Error(), "ShutDown", "Load Persistence S1")
 		return
 	}
 

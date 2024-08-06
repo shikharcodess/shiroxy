@@ -101,3 +101,7 @@ func (d *DomainController) ForceSSL(c *gin.Context) {
 func (d *DomainController) UpdateDomain(c *gin.Context) {}
 
 func (d *DomainController) RemoveDomain(c *gin.Context) {}
+
+func (d *DomainController) FetchDomainInfo(c *gin.Context) {}
+
+func (d *DomainController) FetchCertificateExpiryInfo(c *gin.Context) {}

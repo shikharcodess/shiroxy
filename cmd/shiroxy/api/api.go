@@ -15,7 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type shiroxyAPI struct {
+type ShiroxyAPI struct {
 	healthChecker    *proxy.HealthChecker
 	domainStorage    *domains.Storage
 	analyticsHandler *analytics.AnalyticsConfiguration
@@ -23,7 +23,7 @@ type shiroxyAPI struct {
 }
 
 func StartShiroxyAPI(config models.Config, healthChecker *proxy.HealthChecker, domainStorage *domains.Storage, analyticsHandler *analytics.AnalyticsConfiguration, loghandler *logger.Logger, webhookHandler *webhook.WebhookHandler, wg *sync.WaitGroup) {
-	apiHndler := shiroxyAPI{
+	apiHndler := ShiroxyAPI{
 		healthChecker:    healthChecker,
 		domainStorage:    domainStorage,
 		analyticsHandler: analyticsHandler,
@@ -53,6 +53,7 @@ func StartShiroxyAPI(config models.Config, healthChecker *proxy.HealthChecker, d
 	router.Use(gin.BasicAuth(account))
 
 	routes.DomainRoutes(router, middleware, domainStorage, webhookHandler)
+	routes.AnalyticsRoutes(router, analyticsHandler, middleware, domainStorage, webhookHandler, healthChecker)
 	// routes.SSLRoutes(router, domainStorage)
 
 	// Todo: remove this in final version ===============
@@ -83,6 +84,7 @@ func StartShiroxyAPI(config models.Config, healthChecker *proxy.HealthChecker, d
 
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		dnsRouter := gin.Default()
 		routes.SSLRoutes(dnsRouter, domainStorage)
 		err := dnsRouter.Run(":5002")

@@ -223,6 +223,7 @@ func (s *Storage) generateAcmeAccountKeys(domainName, email string, metadata map
 		}
 
 		domainMetadata = &DomainMetadata{
+			Status:                "inactive",
 			Domain:                domainName,
 			Email:                 email,
 			Metadata:              metadata,

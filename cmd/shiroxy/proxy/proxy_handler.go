@@ -77,10 +77,9 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 		var err error
 
 		if bind.Target == "multiple" {
-			server, secure, err = createMultipleTargetServer(&bind, storage, frontend.handlerFunc, logHandler, wg)
+			server, secure, err = createMultipleTargetServer(&bind, storage, frontend.handlerFunc)
 		} else if bind.Target == "single" {
-			fmt.Println("Single mode Reached =========")
-			server, secure, err = createSingleTargetServer(&bind, storage, frontend.handlerFunc, logHandler, wg)
+			server, secure, err = createSingleTargetServer(&bind, storage, frontend.handlerFunc)
 		}
 
 		if err != nil {
@@ -92,7 +91,7 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 	return loadbalancer, nil
 }
 
-func createMultipleTargetServer(bindData *models.FrontendBind, storage *domains.Storage, handlerFunc http.HandlerFunc, logHandler *logger.Logger, wg *sync.WaitGroup) (server *http.Server, secure bool, err error) {
+func createMultipleTargetServer(bindData *models.FrontendBind, storage *domains.Storage, handlerFunc http.HandlerFunc) (server *http.Server, secure bool, err error) {
 	if bindData.Secure {
 		server := &http.Server{
 			Addr:    fmt.Sprintf("%s:%s", bindData.Host, bindData.Port),
@@ -135,7 +134,7 @@ func createMultipleTargetServer(bindData *models.FrontendBind, storage *domains.
 	}
 }
 
-func createSingleTargetServer(bindData *models.FrontendBind, storage *domains.Storage, handlerFunc http.HandlerFunc, logHandler *logger.Logger, wg *sync.WaitGroup) (server *http.Server, secure bool, err error) {
+func createSingleTargetServer(bindData *models.FrontendBind, storage *domains.Storage, handlerFunc http.HandlerFunc) (server *http.Server, secure bool, err error) {
 	if bindData.Secure {
 		var tlsConfig *tls.Config
 		if bindData.SecureSetting.SingleTargetMode == "certandkey" {

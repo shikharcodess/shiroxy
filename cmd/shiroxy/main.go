@@ -23,6 +23,9 @@ var INSECURE_SKIP_VERIFY string
 var VERSION string
 
 func main() {
+
+	// myFigure.Print()
+
 	wg := sync.WaitGroup{}
 
 	// Starting Logger
@@ -87,7 +90,7 @@ func main() {
 		panic(err)
 	}
 
-	api.StartShiroxyAPI(*configuration, laodBalancer.HealthChecker, storageHandler, analyticsConfiguration, logHandler, &wg)
+	api.StartShiroxyAPI(*configuration, laodBalancer.HealthChecker, storageHandler, analyticsConfiguration, logHandler, webhookHandler, &wg)
 
 	wg.Wait()
 }

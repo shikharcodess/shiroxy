@@ -16,7 +16,7 @@ func DomainRoutes(router *gin.RouterGroup, middleware *middlewares.Middlewares, 
 		WebhookHandler: webhookHandler,
 	}
 	domain := router.Group("/domain")
-	domain.Use(middleware.CheckAccess())
+	// domain.Use(middleware.CheckAccess())
 
 	domain.POST("/register", domainController.RegisterDomain)
 	domain.POST("/forcessl", domainController.ForceSSL)

@@ -13,4 +13,7 @@ func PrintLogo() {
 	logger.BluePrintln("|||      # #   # # # #   #    #  # #    #  |||||||||")
 	logger.BluePrintln("||  ##### #   # # #  #   ####  #   #  #  |||||||||||")
 	fmt.Println("")
+
+	// shiroxyFigure := figure.NewFigure("SHIROXY", "", true)
+	// logger.BluePrintln(shiroxyFigure.String())
 }
