@@ -19,10 +19,11 @@ Welcome to the Shirxoy! This Go-based reverse proxy is designed to provide seaml
 ## Table of Contents
 
 - [Getting Started](#getting-started)
-- [Configuration File](https://github.com/ShikharY10/shiroxy/configuration.md)
-<!-- - [API Documentation](#api-documentation) -->
+- [Configuration File](https://github.com/ShikharY10/shiroxy/blob/main/configuration.md)
 - [Contributing](#contributing)
-- [License](https://github.com/ShikharY10/shiroxy/LICENSE)
+- [License](https://github.com/ShikharY10/shiroxy/blob/main/LICENSE)
+
+<!-- - [API Documentation](#api-documentation) -->
 
 ## Getting Started
 
