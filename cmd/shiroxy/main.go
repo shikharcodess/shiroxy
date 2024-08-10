@@ -90,7 +90,7 @@ func main() {
 		panic(err)
 	}
 
-	api.StartShiroxyAPI(*configuration, laodBalancer.HealthChecker, storageHandler, analyticsConfiguration, logHandler, webhookHandler, &wg)
+	api.StartShiroxyAPI(*configuration, laodBalancer, storageHandler, analyticsConfiguration, logHandler, webhookHandler, &wg)
 
 	wg.Wait()
 }

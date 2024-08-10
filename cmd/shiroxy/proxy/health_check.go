@@ -2,11 +2,13 @@ package proxy
 
 import (
 	"net/http"
+	"shiroxy/cmd/shiroxy/webhook"
 	"sync"
 	"time"
 )
 
 type HealthChecker struct {
+	webhookHandler        *webhook.WebhookHandler
 	Servers               []*Server
 	healthCheckTrigger    time.Duration
 	stop                  chan bool
@@ -40,8 +42,22 @@ func (hc *HealthChecker) StartHealthCheck() {
 					resp, err := client.Head(server.URL.String())
 					if err != nil || resp.StatusCode != http.StatusOK {
 						server.Alive = false
+						if server.FireWebhookOnFirstHealthCheck {
+							data := map[string]string{
+								"host": server.URL.Host,
+							}
+							hc.webhookHandler.Fire("backendserver.register.success", data)
+							server.FireWebhookOnFirstHealthCheck = false
+						}
 					} else {
 						server.Alive = true
+						if !server.FireWebhookOnFirstHealthCheck {
+							data := map[string]string{
+								"host": server.URL.Host,
+							}
+							hc.webhookHandler.Fire("backendserver.register.failed", data)
+							server.FireWebhookOnFirstHealthCheck = false
+						}
 					}
 				}
 

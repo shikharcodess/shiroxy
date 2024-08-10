@@ -38,7 +38,7 @@ type ProxyRequest struct {
 //		r.Out.Host = r.In.Host
 //	}
 func (r *ProxyRequest) SetURL(target *url.URL) {
-	rewriteRequestURL(r.Out, target)
+	RewriteRequestURL(r.Out, target)
 	r.Out.Host = ""
 }
 
@@ -80,11 +80,11 @@ func (r *ProxyRequest) SetXForwarded() {
 	}
 }
 
-func rewriteRequestURL(req *http.Request, target *url.URL) {
+func RewriteRequestURL(req *http.Request, target *url.URL) {
 	targetQuery := target.RawQuery
 	req.URL.Scheme = target.Scheme
 	req.URL.Host = target.Host
-	req.URL.Path, req.URL.RawPath = joinURLPath(target, req.URL)
+	req.URL.Path, req.URL.RawPath = JoinURLPath(target, req.URL)
 	if targetQuery == "" || req.URL.RawQuery == "" {
 		req.URL.RawQuery = targetQuery + req.URL.RawQuery
 	} else {
@@ -92,9 +92,9 @@ func rewriteRequestURL(req *http.Request, target *url.URL) {
 	}
 }
 
-func joinURLPath(a, b *url.URL) (path, rawpath string) {
+func JoinURLPath(a, b *url.URL) (path, rawpath string) {
 	if a.RawPath == "" && b.RawPath == "" {
-		return singleJoiningSlash(a.Path, b.Path), ""
+		return SingleJoiningSlash(a.Path, b.Path), ""
 	}
 	// Same as singleJoiningSlash, but uses EscapedPath to determine
 	// whether a slash should be added
@@ -113,7 +113,7 @@ func joinURLPath(a, b *url.URL) (path, rawpath string) {
 	return a.Path + b.Path, apath + bpath
 }
 
-func singleJoiningSlash(a, b string) string {
+func SingleJoiningSlash(a, b string) string {
 	aslash := strings.HasSuffix(a, "/")
 	bslash := strings.HasPrefix(b, "/")
 	switch {

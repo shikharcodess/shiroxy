@@ -3,17 +3,20 @@ package routes
 import (
 	"shiroxy/cmd/shiroxy/api/controllers"
 	"shiroxy/cmd/shiroxy/api/middlewares"
-	"shiroxy/cmd/shiroxy/domains"
-	"shiroxy/cmd/shiroxy/webhook"
+	"shiroxy/cmd/shiroxy/types"
 
 	"github.com/gin-gonic/gin"
 )
 
-func DomainRoutes(router *gin.RouterGroup, middleware *middlewares.Middlewares, storage *domains.Storage, webhookHandler *webhook.WebhookHandler) {
+func DomainRoutes(router *gin.RouterGroup, apiContext *types.APIContext) error {
+	domainMiddleware, err := middlewares.InitializeMiddleware(apiContext.LogHandler, "")
+	if err != nil {
+		return err
+	}
+
 	domainController := controllers.DomainController{
-		Storage:        storage,
-		Middlewares:    middleware,
-		WebhookHandler: webhookHandler,
+		Middlewares: domainMiddleware,
+		Context:     apiContext,
 	}
 	domain := router.Group("/domain")
 	// domain.Use(middleware.CheckAccess())
@@ -21,4 +24,6 @@ func DomainRoutes(router *gin.RouterGroup, middleware *middlewares.Middlewares, 
 	domain.POST("/register", domainController.RegisterDomain)
 	domain.POST("/forcessl", domainController.ForceSSL)
 	domain.POST("/")
+
+	return nil
 }

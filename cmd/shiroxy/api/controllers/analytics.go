@@ -2,31 +2,25 @@ package controllers
 
 import (
 	"reflect"
-	"shiroxy/cmd/shiroxy/analytics"
 	"shiroxy/cmd/shiroxy/api/middlewares"
-	"shiroxy/cmd/shiroxy/domains"
-	"shiroxy/cmd/shiroxy/proxy"
-	"shiroxy/cmd/shiroxy/webhook"
+	"shiroxy/cmd/shiroxy/types"
 
 	"github.com/gin-gonic/gin"
 )
 
 type AnalyticsController struct {
-	Storage          *domains.Storage
-	AnalyticsHandler *analytics.AnalyticsConfiguration
-	Middlewares      *middlewares.Middlewares
-	WebhookHandler   *webhook.WebhookHandler
-	HealthChecker    *proxy.HealthChecker
+	Context     *types.APIContext
+	Middlewares *middlewares.Middlewares
 }
 
 func (a *AnalyticsController) FetchDomainAnalytics(c *gin.Context) {
 	response := map[string]interface{}{
-		"total":          len(a.Storage.DomainMetadata),
+		"total":          len(a.Context.DomainStorage.DomainMetadata),
 		"total_active":   0,
 		"total_inactive": 0,
 	}
 
-	for _, domain := range a.Storage.DomainMetadata {
+	for _, domain := range a.Context.DomainStorage.DomainMetadata {
 		if domain.Status == "active" {
 			if response["total_active"] != nil {
 				response["total_active"] = (response["total_active"].(int) + 1)
@@ -51,7 +45,7 @@ func (a *AnalyticsController) FetchDomainAnalytics(c *gin.Context) {
 func (a *AnalyticsController) FetchSystemAnalytics(c *gin.Context) {
 	response := map[string]interface{}{}
 
-	analytics, err := a.AnalyticsHandler.ReadAnalytics(true)
+	analytics, err := a.Context.AnalyticsHandler.ReadAnalytics(true)
 	if err != nil {
 		a.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 			Success: false,
@@ -85,7 +79,7 @@ func (a *AnalyticsController) FetchServerDetails(c *gin.Context) {
 	response := map[string]interface{}{}
 
 	var servers []map[string]any = []map[string]any{}
-	for _, server := range a.HealthChecker.Servers {
+	for _, server := range a.Context.HealthChecker.Servers {
 		serverReflect := reflect.ValueOf(server)
 		if serverReflect.Kind() == reflect.Ptr {
 			serverReflect = serverReflect.Elem()

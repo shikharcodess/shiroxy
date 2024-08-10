@@ -2,16 +2,14 @@ package controllers
 
 import (
 	"shiroxy/cmd/shiroxy/api/middlewares"
-	"shiroxy/cmd/shiroxy/domains"
-	"shiroxy/cmd/shiroxy/webhook"
+	"shiroxy/cmd/shiroxy/types"
 
 	"github.com/gin-gonic/gin"
 )
 
 type DomainController struct {
-	Storage        *domains.Storage
-	Middlewares    *middlewares.Middlewares
-	WebhookHandler *webhook.WebhookHandler
+	Context     *types.APIContext
+	Middlewares *middlewares.Middlewares
 }
 
 type registerDomainRequestBody struct {
@@ -39,9 +37,9 @@ func (d *DomainController) RegisterDomain(c *gin.Context) {
 		return
 	}
 
-	dnsKey, err := d.Storage.RegisterDomain(requestBody.Domain, requestBody.Email, requestBody.Metadata)
+	dnsKey, err := d.Context.DomainStorage.RegisterDomain(requestBody.Domain, requestBody.Email, requestBody.Metadata)
 	if err != nil {
-		d.WebhookHandler.Fire("domain-register-failed", map[string]string{
+		d.Context.WebhookHandler.Fire("domain-register-failed", map[string]string{
 			"domain": requestBody.Domain,
 		})
 		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
@@ -50,7 +48,7 @@ func (d *DomainController) RegisterDomain(c *gin.Context) {
 		}, 400)
 		return
 	} else {
-		d.WebhookHandler.Fire("domain-register-success", map[string]string{
+		d.Context.WebhookHandler.Fire("domain-register-success", map[string]string{
 			"domain": requestBody.Domain,
 		})
 		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
@@ -80,12 +78,12 @@ func (d *DomainController) ForceSSL(c *gin.Context) {
 	if requestBody.Domain == "" {
 		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 			Success: false,
-			Error:   err.Error(),
+			Error:   "field domain is required",
 		}, 400)
 		return
 	}
 
-	err = d.Storage.ForceSSL(requestBody.Domain)
+	err = d.Context.DomainStorage.ForceSSL(requestBody.Domain)
 	if err != nil {
 		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 			Success: false,

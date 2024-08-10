@@ -10,10 +10,12 @@ import (
 )
 
 type Server struct {
-	URL            *url.URL
-	HealthCheckUrl *url.URL
-	Alive          bool
-	Shiroxy        *Shiroxy
+	Id                            string
+	URL                           *url.URL
+	HealthCheckUrl                *url.URL
+	Alive                         bool
+	Shiroxy                       *Shiroxy
+	FireWebhookOnFirstHealthCheck bool
 }
 
 type Frontends struct {

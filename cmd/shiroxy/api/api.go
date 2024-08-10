@@ -3,10 +3,10 @@ package api
 import (
 	"fmt"
 	"shiroxy/cmd/shiroxy/analytics"
-	"shiroxy/cmd/shiroxy/api/middlewares"
 	"shiroxy/cmd/shiroxy/api/routes"
 	"shiroxy/cmd/shiroxy/domains"
 	"shiroxy/cmd/shiroxy/proxy"
+	"shiroxy/cmd/shiroxy/types"
 	"shiroxy/cmd/shiroxy/webhook"
 	"shiroxy/pkg/logger"
 	"shiroxy/pkg/models"
@@ -15,25 +15,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ShiroxyAPI struct {
-	healthChecker    *proxy.HealthChecker
-	domainStorage    *domains.Storage
-	analyticsHandler *analytics.AnalyticsConfiguration
-	logHandler       *logger.Logger
-}
+// type ShiroxyAPI struct {
+// 	healthChecker    *proxy.HealthChecker
+// 	domainStorage    *domains.Storage
+// 	analyticsHandler *analytics.AnalyticsConfiguration
+// 	logHandler       *logger.Logger
+// }
 
-func StartShiroxyAPI(config models.Config, healthChecker *proxy.HealthChecker, domainStorage *domains.Storage, analyticsHandler *analytics.AnalyticsConfiguration, loghandler *logger.Logger, webhookHandler *webhook.WebhookHandler, wg *sync.WaitGroup) {
-	apiHndler := ShiroxyAPI{
-		healthChecker:    healthChecker,
-		domainStorage:    domainStorage,
-		analyticsHandler: analyticsHandler,
-		logHandler:       loghandler,
-	}
-
-	middleware, err := middlewares.InitializeMiddleware(apiHndler.logHandler, "api")
-	if err != nil {
-		loghandler.LogError("failed to start shiroxy dynamic API", "api", "error")
-		return
+func StartShiroxyAPI(config models.Config, loadBalancer *proxy.LoadBalancer, domainStorage *domains.Storage, analyticsHandler *analytics.AnalyticsConfiguration, loghandler *logger.Logger, webhookHandler *webhook.WebhookHandler, wg *sync.WaitGroup) {
+	apiContext := types.APIContext{
+		WaitGroup:        wg,
+		WebhookHandler:   webhookHandler,
+		DomainStorage:    domainStorage,
+		AnalyticsHandler: analyticsHandler,
+		LogHandler:       loghandler,
+		LoadBalancer:     loadBalancer,
 	}
 
 	gin.SetMode(gin.ReleaseMode)
@@ -52,9 +48,9 @@ func StartShiroxyAPI(config models.Config, healthChecker *proxy.HealthChecker, d
 
 	router.Use(gin.BasicAuth(account))
 
-	routes.DomainRoutes(router, middleware, domainStorage, webhookHandler)
-	routes.AnalyticsRoutes(router, analyticsHandler, middleware, domainStorage, webhookHandler, healthChecker)
-	// routes.SSLRoutes(router, domainStorage)
+	routes.DomainRoutes(router, &apiContext)
+	routes.AnalyticsRoutes(router, &apiContext)
+	routes.BackendsRoutes(router, &apiContext)
 
 	// Todo: remove this in final version ===============
 	router.GET("/auth", func(ctx *gin.Context) {

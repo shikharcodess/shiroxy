@@ -1,27 +1,27 @@
 package routes
 
 import (
-	"shiroxy/cmd/shiroxy/analytics"
 	"shiroxy/cmd/shiroxy/api/controllers"
 	"shiroxy/cmd/shiroxy/api/middlewares"
-	"shiroxy/cmd/shiroxy/domains"
-	"shiroxy/cmd/shiroxy/proxy"
-	"shiroxy/cmd/shiroxy/webhook"
+	"shiroxy/cmd/shiroxy/types"
 
 	"github.com/gin-gonic/gin"
 )
 
-func AnalyticsRoutes(router *gin.RouterGroup, analyticsHandler *analytics.AnalyticsConfiguration, middleware *middlewares.Middlewares, storage *domains.Storage, webhookHandler *webhook.WebhookHandler, healthChecker *proxy.HealthChecker) {
+func AnalyticsRoutes(router *gin.RouterGroup, apiContext *types.APIContext) error {
+	analyticsMiddleware, err := middlewares.InitializeMiddleware(apiContext.LogHandler, "")
+	if err != nil {
+		return err
+	}
 	analyticsController := controllers.AnalyticsController{
-		Storage:          storage,
-		AnalyticsHandler: analyticsHandler,
-		Middlewares:      middleware,
-		WebhookHandler:   webhookHandler,
-		HealthChecker:    healthChecker,
+		Context:     apiContext,
+		Middlewares: analyticsMiddleware,
 	}
 	domain := router.Group("/analytics")
 	// domain.Use(middleware.CheckAccess())
 
 	domain.GET("/domains", analyticsController.FetchDomainAnalytics)
 	domain.GET("/systems", analyticsController.FetchSystemAnalytics)
+
+	return nil
 }

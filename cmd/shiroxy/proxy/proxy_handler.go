@@ -24,12 +24,14 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 		}
 
 		servers = append(servers, &Server{
+			Id:    server.Id,
 			URL:   &host,
 			Alive: true,
+
 			Shiroxy: &Shiroxy{
 				Logger: logHandler,
 				Director: func(req *http.Request) {
-					rewriteRequestURL(req, &host)
+					RewriteRequestURL(req, &host)
 				},
 			},
 		})
