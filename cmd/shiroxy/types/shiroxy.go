@@ -6,6 +6,7 @@ import (
 	"shiroxy/cmd/shiroxy/proxy"
 	"shiroxy/cmd/shiroxy/webhook"
 	"shiroxy/pkg/logger"
+	"shiroxy/pkg/models"
 	"sync"
 )
 
@@ -17,4 +18,5 @@ type APIContext struct {
 	AnalyticsHandler *analytics.AnalyticsConfiguration
 	LogHandler       *logger.Logger
 	LoadBalancer     *proxy.LoadBalancer
+	Configuration    *models.Config
 }

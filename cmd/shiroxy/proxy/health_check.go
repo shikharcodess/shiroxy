@@ -16,8 +16,9 @@ type HealthChecker struct {
 	wg                    *sync.WaitGroup
 }
 
-func NewHealthChecker(server []*Server, triggerInterval time.Duration, wg *sync.WaitGroup) *HealthChecker {
+func NewHealthChecker(server []*Server, webhookHandler *webhook.WebhookHandler, triggerInterval time.Duration, wg *sync.WaitGroup) *HealthChecker {
 	return &HealthChecker{
+		webhookHandler:        webhookHandler,
 		Servers:               server,
 		healthCheckTrigger:    triggerInterval,
 		stop:                  make(chan bool, 1),

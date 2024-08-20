@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"shiroxy/cmd/shiroxy/webhook"
 	"shiroxy/pkg/models"
 	"sync"
 	"time"
@@ -35,8 +36,8 @@ type LoadBalancer struct {
 	HealthChecker   *HealthChecker
 }
 
-func NewLoadBalancer(configuration *models.Config, servers []*Server, wg *sync.WaitGroup) *LoadBalancer {
-	healthChecker := NewHealthChecker(servers, time.Second*5, wg)
+func NewLoadBalancer(configuration *models.Config, servers []*Server, webhookHandler *webhook.WebhookHandler, wg *sync.WaitGroup) *LoadBalancer {
+	healthChecker := NewHealthChecker(servers, webhookHandler, time.Second*5, wg)
 	healthChecker.StartHealthCheck()
 
 	return &LoadBalancer{

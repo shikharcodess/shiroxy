@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"shiroxy/cmd/shiroxy/domains"
+	"shiroxy/cmd/shiroxy/webhook"
 	"shiroxy/pkg/logger"
 	"shiroxy/pkg/models"
 	"shiroxy/public"
@@ -14,7 +15,7 @@ import (
 	"sync"
 )
 
-func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage, logHandler *logger.Logger, wg *sync.WaitGroup) (*LoadBalancer, error) {
+func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage, webhookHandler *webhook.WebhookHandler, logHandler *logger.Logger, wg *sync.WaitGroup) (*LoadBalancer, error) {
 
 	var servers []*Server
 	for _, server := range configuration.Backend.Servers {
@@ -37,7 +38,7 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 		})
 	}
 
-	loadbalancer := NewLoadBalancer(configuration, servers, wg)
+	loadbalancer := NewLoadBalancer(configuration, servers, webhookHandler, wg)
 	domainNotFoundErrorResponse := loadErrorPageHtmlContent(public.DOMAIN_NOT_FOUND_ERROR, &configuration.Default.ErrorResponses)
 
 	for _, bind := range configuration.Frontend.Bind {

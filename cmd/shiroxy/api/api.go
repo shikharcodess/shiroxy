@@ -22,7 +22,7 @@ import (
 // 	logHandler       *logger.Logger
 // }
 
-func StartShiroxyAPI(config models.Config, loadBalancer *proxy.LoadBalancer, domainStorage *domains.Storage, analyticsHandler *analytics.AnalyticsConfiguration, loghandler *logger.Logger, webhookHandler *webhook.WebhookHandler, wg *sync.WaitGroup) {
+func StartShiroxyAPI(config *models.Config, loadBalancer *proxy.LoadBalancer, domainStorage *domains.Storage, analyticsHandler *analytics.AnalyticsConfiguration, loghandler *logger.Logger, webhookHandler *webhook.WebhookHandler, wg *sync.WaitGroup) {
 	apiContext := types.APIContext{
 		WaitGroup:        wg,
 		WebhookHandler:   webhookHandler,
@@ -30,6 +30,7 @@ func StartShiroxyAPI(config models.Config, loadBalancer *proxy.LoadBalancer, dom
 		AnalyticsHandler: analyticsHandler,
 		LogHandler:       loghandler,
 		LoadBalancer:     loadBalancer,
+		Configuration:    config,
 	}
 
 	gin.SetMode(gin.ReleaseMode)

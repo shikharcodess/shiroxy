@@ -23,9 +23,6 @@ var INSECURE_SKIP_VERIFY string
 var VERSION string
 
 func main() {
-
-	// myFigure.Print()
-
 	wg := sync.WaitGroup{}
 
 	// Starting Logger
@@ -81,16 +78,17 @@ func main() {
 	}()
 
 	webhookHandler, err := webhook.StartWebhookHandler(configuration.Webhook, logHandler, &wg, storageHandler.WebhookSecret)
+
 	if err != nil {
 		logHandler.LogError(err.Error(), "Webhook", "main")
 	}
 
-	laodBalancer, err := proxy.StartShiroxyHandler(configuration, storageHandler, logHandler, &wg)
+	laodBalancer, err := proxy.StartShiroxyHandler(configuration, storageHandler, webhookHandler, logHandler, &wg)
 	if err != nil {
 		panic(err)
 	}
 
-	api.StartShiroxyAPI(*configuration, laodBalancer, storageHandler, analyticsConfiguration, logHandler, webhookHandler, &wg)
+	api.StartShiroxyAPI(configuration, laodBalancer, storageHandler, analyticsConfiguration, logHandler, webhookHandler, &wg)
 
 	wg.Wait()
 }

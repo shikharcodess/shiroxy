@@ -8,25 +8,23 @@ import (
 	"shiroxy/cmd/shiroxy/api/middlewares"
 	"shiroxy/cmd/shiroxy/proxy"
 	"shiroxy/cmd/shiroxy/types"
-	"shiroxy/pkg/logger"
-	"shiroxy/pkg/models"
 
 	"github.com/gin-gonic/gin"
 )
 
 type BackendController struct {
-	LoadBalancer *proxy.LoadBalancer
-	Middlewares  *middlewares.Middlewares
-	Configuraton *models.Config
-	logHandler   *logger.Logger
-	Context      *types.APIContext
+	Middlewares *middlewares.Middlewares
+	Context     *types.APIContext
 }
 
 func (b *BackendController) FetchAllBackendServers(c *gin.Context) {
 	response := map[string]interface{}{}
 
 	var servers []map[string]any = []map[string]any{}
-	for _, server := range b.LoadBalancer.Servers {
+	fmt.Println("1")
+
+	for _, server := range b.Context.LoadBalancer.Servers {
+		fmt.Println("server: ", server.Id)
 		serverReflect := reflect.ValueOf(server)
 		if serverReflect.Kind() == reflect.Ptr {
 			serverReflect = serverReflect.Elem()
@@ -65,7 +63,7 @@ func (b *BackendController) RegisterNewBackendServer(c *gin.Context) {
 	}
 
 	serverUrl := url.URL{
-		Scheme: b.Configuraton.Default.Mode,
+		Scheme: b.Context.Configuration.Default.Mode,
 		Host:   fmt.Sprintf("%s:%s", requestBody.Host, requestBody.Port), // The actual address where domain1's server is running
 	}
 
@@ -81,7 +79,7 @@ func (b *BackendController) RegisterNewBackendServer(c *gin.Context) {
 		Alive:                         false,
 		FireWebhookOnFirstHealthCheck: true,
 		Shiroxy: &proxy.Shiroxy{
-			Logger: b.logHandler,
+			Logger: b.Context.LogHandler,
 			Director: func(req *http.Request) {
 				targetQuery := serverUrl.RawQuery
 				req.URL.Scheme = serverUrl.Scheme
@@ -96,7 +94,7 @@ func (b *BackendController) RegisterNewBackendServer(c *gin.Context) {
 		},
 	}
 
-	b.LoadBalancer.Servers = append(b.LoadBalancer.Servers, &server)
+	b.Context.LoadBalancer.Servers = append(b.Context.LoadBalancer.Servers, &server)
 
 	b.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 		Success: true,
@@ -124,5 +122,4 @@ func (b *BackendController) RemoveBackendServer(c *gin.Context) {
 		}, 400)
 		return
 	}
-
 }

@@ -29,8 +29,8 @@ import (
 const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 type WebhookFirePayload struct {
-	event_name string
-	data       interface{}
+	EventName string      `json:"event_name"`
+	Data      interface{} `json:"data"`
 }
 
 type WebhookHandler struct {
@@ -50,7 +50,7 @@ func StartWebhookHandler(config models.Webhook, logHandler *logger.Logger, wg *s
 	var selectedSecret string
 	var err error
 	if secret == "" {
-		selectedSecret, err = generateSecret()
+		selectedSecret, err = generateSecret(10)
 		if err != nil {
 			return nil, err
 		}
@@ -61,7 +61,7 @@ func StartWebhookHandler(config models.Webhook, logHandler *logger.Logger, wg *s
 	webhookHandler := &WebhookHandler{
 		WebHookConfig: config,
 		secret:        selectedSecret,
-		fire:          make(chan *WebhookFirePayload),
+		fire:          make(chan *WebhookFirePayload, 1),
 	}
 
 	wg.Add(1)
@@ -76,8 +76,8 @@ func StartWebhookHandler(config models.Webhook, logHandler *logger.Logger, wg *s
 
 func (w *WebhookHandler) Fire(eventName string, data interface{}) {
 	w.fire <- &WebhookFirePayload{
-		event_name: eventName,
-		data:       data,
+		EventName: eventName,
+		Data:      data,
 	}
 }
 
@@ -85,14 +85,14 @@ func (w *WebhookHandler) fireWebhook(payload *WebhookFirePayload) {
 	var eventFound bool
 
 	for _, event := range w.WebHookConfig.Events {
-		if event == payload.event_name {
+		if event == payload.EventName {
 			eventFound = true
 			break
 		}
 	}
 
 	if eventFound {
-		jsonData, err := json.Marshal(payload.data)
+		jsonData, err := json.Marshal(payload.Data)
 		if err != nil {
 			w.logHandler.LogError(err.Error(), "Webhook", "Error")
 		}
@@ -131,10 +131,9 @@ func (w *WebhookHandler) fireWebhook(payload *WebhookFirePayload) {
 }
 
 // Function for generating new webhook secret
-func generateSecret() (string, error) {
+func generateSecret(length int) (string, error) {
 	newUuid := uuid.New()
-	length := 8
-	max := big.NewInt(8)
+	// length := 8
 
 	var resultedString string
 	for i := 0; i < length; i++ {
@@ -147,7 +146,7 @@ func generateSecret() (string, error) {
 
 	var resultedNumber string
 	for i := 0; i < length; i++ {
-		num, err := rand.Int(rand.Reader, max)
+		num, err := rand.Int(rand.Reader, big.NewInt(8))
 		if err != nil {
 			return "", err
 		}
