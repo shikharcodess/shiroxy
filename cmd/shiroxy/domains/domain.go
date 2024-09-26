@@ -1,3 +1,5 @@
+// Package domains provides functionalities for managing domain metadata, including registration,
+// updating, removal, and certificate generation for domains using the ACME protocol.
 package domains
 
 import (
@@ -20,34 +22,46 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// Storage is responsible for handling domain data storage, ACME certificates, and DNS challenge tokens.
 type Storage struct {
-	WebhookSecret        string
-	ACME_SERVER_URL      string
-	INSECURE_SKIP_VERIFY bool
-	storage              *models.Storage
-	redisClient          *redis.Client
-	DnsChallengeToken    map[string]string
-	DomainMetadata       map[string]*DomainMetadata
+	WebhookSecret        string                     // Secret for webhook verification.
+	ACME_SERVER_URL      string                     // URL for the ACME server.
+	INSECURE_SKIP_VERIFY bool                       // Flag to skip SSL verification; used for testing only.
+	storage              *models.Storage            // Storage configuration (e.g., memory, Redis).
+	redisClient          *redis.Client              // Redis client for interacting with Redis storage.
+	DnsChallengeToken    map[string]string          // Map to store DNS challenge tokens for domains.
+	DomainMetadata       map[string]*DomainMetadata // Metadata for each registered domain.
 }
 
+// InitializeStorage initializes the storage system for managing domain metadata.
+// Parameters:
+//   - storage: *models.Storage, configuration for storage (memory or Redis).
+//   - acmeServerUrl: string, URL for the ACME server.
+//   - insecureSkipVerify: string, determines whether to skip SSL verification ("yes" or "no").
+//   - wg: *sync.WaitGroup, used for synchronization.
+//
+// Returns:
+//   - *Storage: a pointer to the initialized Storage instance.
+//   - error: error if the storage could not be initialized.
 func InitializeStorage(storage *models.Storage, acmeServerUrl string, insecureSkipVerify string, wg *sync.WaitGroup) (*Storage, error) {
 	storageSystem := Storage{
 		storage:              storage,
 		DnsChallengeToken:    make(map[string]string),
 		ACME_SERVER_URL:      acmeServerUrl,
-		INSECURE_SKIP_VERIFY: true,
-		// challengeSolvers:  []*ChallengeSolvers{},
+		INSECURE_SKIP_VERIFY: true, // Defaults to true unless explicitly set to "no".
 	}
+
+	// Set INSECURE_SKIP_VERIFY based on input.
 	if insecureSkipVerify == "no" {
 		storageSystem.INSECURE_SKIP_VERIFY = false
 	}
 
+	// Initialize storage based on the specified storage location (memory or Redis).
 	if storage.Location == "redis" {
 		redisClient, err := storageSystem.connectRedis()
 		if err != nil {
 			return nil, err
 		}
-
 		storageSystem.redisClient = redisClient
 		storageSystem.DomainMetadata = make(map[string]*DomainMetadata)
 	} else if storage.Location == "memory" {
@@ -55,25 +69,32 @@ func InitializeStorage(storage *models.Storage, acmeServerUrl string, insecureSk
 		if err != nil {
 			return nil, err
 		}
-
 		storageSystem.DomainMetadata = memoryStorage
 	}
-	// storageSystem.challengeSolver(wg)
 	return &storageSystem, nil
 }
 
+// RegisterDomain registers a new domain with metadata and generates an ACME account key.
+// Parameters:
+//   - domainName: string, the domain to register.
+//   - user_email: string, the user's email associated with the domain.
+//   - metadata: map[string]string, additional metadata for the domain.
+//
+// Returns:
+//   - string: the DNS challenge key.
+//   - error: error if registration fails.
 func (s *Storage) RegisterDomain(domainName, user_email string, metadata map[string]string) (string, error) {
 	if len(domainName) == 0 {
 		return "", errors.New("domainName should not be empty")
 	}
 
+	// Generate ACME account keys for the domain.
 	domainMetadata, err := s.generateAcmeAccountKeys(domainName, user_email, metadata)
 	if err != nil {
 		return "", err
 	}
 
-	fmt.Println("keys generated")
-
+	// Store the domain metadata in the appropriate storage (memory or Redis).
 	if s.storage.Location == "memory" {
 		s.DomainMetadata[domainName] = domainMetadata
 	} else if s.storage.Location == "redis" {
@@ -89,19 +110,25 @@ func (s *Storage) RegisterDomain(domainName, user_email string, metadata map[str
 		}
 	}
 
-	fmt.Println("domain metadata saved")
-
-	// TODO: June 30 10:34 AM - Handle Certificate Storage, generation is already handled.
+	// Generate the certificate for the domain.
 	s.generateCertificate(domainMetadata)
 
 	return domainMetadata.DnsChallengeKey, nil
 }
 
+// UpdateDomain updates the metadata for an existing domain.
+// Parameters:
+//   - domainName: string, the domain to update.
+//   - updateBody: *DomainMetadata, the new metadata to update.
+//
+// Returns:
+//   - error: error if the domain cannot be updated.
 func (s *Storage) UpdateDomain(domainName string, updateBody *DomainMetadata) error {
 	if len(domainName) == 0 {
 		return errors.New("domainName should not be empty")
 	}
 
+	// Update the metadata in the appropriate storage (memory or Redis).
 	if s.storage.Location == "memory" {
 		oldData := s.DomainMetadata[domainName]
 		if oldData == nil {
@@ -136,11 +163,18 @@ func (s *Storage) UpdateDomain(domainName string, updateBody *DomainMetadata) er
 	return nil
 }
 
+// RemoveDomain removes a domain's metadata from the storage.
+// Parameters:
+//   - domainName: string, the domain to remove.
+//
+// Returns:
+//   - error: error if the domain cannot be removed.
 func (s *Storage) RemoveDomain(domainName string) error {
 	if len(domainName) == 0 {
 		return errors.New("domainName should not be empty")
 	}
 
+	// Remove domain metadata from memory or Redis.
 	if s.storage.Location == "memory" {
 		oldData := s.DomainMetadata[domainName]
 		if oldData == nil {
@@ -171,10 +205,20 @@ func (s *Storage) RemoveDomain(domainName string) error {
 	return nil
 }
 
+// ForceSSL is a placeholder function to enforce SSL for a domain.
+// Parameters:
+//   - domainName: string, the domain to enforce SSL on.
+//
+// Returns:
+//   - error: currently, this function returns nil as it's a placeholder.
 func (s *Storage) ForceSSL(domainName string) error {
 	return nil
 }
 
+// connectRedis establishes a connection to the Redis database using the provided configuration.
+// Returns:
+//   - *redis.Client: the initialized Redis client.
+//   - error: error if the connection fails.
 func (s *Storage) connectRedis() (*redis.Client, error) {
 	var rdb redis.Client
 
@@ -202,11 +246,24 @@ func (s *Storage) connectRedis() (*redis.Client, error) {
 	}
 }
 
+// initiazeMemoryStorage initializes an in-memory storage map for domain metadata.
+// Returns:
+//   - map[string]*DomainMetadata: the initialized in-memory storage map.
+//   - error: currently, this function returns nil as it always succeeds.
 func (s *Storage) initiazeMemoryStorage() (map[string]*DomainMetadata, error) {
 	memoryMap := map[string]*DomainMetadata{}
 	return memoryMap, nil
 }
 
+// generateAcmeAccountKeys generates an ACME account private key for a domain.
+// Parameters:
+//   - domainName: string, the domain to generate keys for.
+//   - email: string, the user's email.
+//   - metadata: map[string]string, additional metadata for the domain.
+//
+// Returns:
+//   - *DomainMetadata: the generated domain metadata containing the keys.
+//   - error: error if key generation fails.
 func (s *Storage) generateAcmeAccountKeys(domainName, email string, metadata map[string]string) (*DomainMetadata, error) {
 	var domainMetadata *DomainMetadata
 
@@ -234,8 +291,13 @@ func (s *Storage) generateAcmeAccountKeys(domainName, email string, metadata map
 	return domainMetadata, nil
 }
 
+// generateCertificate generates an SSL certificate for the domain using the ACME protocol.
+// Parameters:
+//   - domainMetadata: *DomainMetadata, the metadata of the domain to generate a certificate for.
+//
+// Returns:
+//   - error: error if certificate generation fails.
 func (s *Storage) generateCertificate(domainMetadata *DomainMetadata) error {
-
 	accountPrivateKey, err := x509.ParseECPrivateKey(domainMetadata.AcmeAccountPrivateKey)
 	if err != nil {
 		return err
@@ -253,13 +315,13 @@ func (s *Storage) generateCertificate(domainMetadata *DomainMetadata) error {
 		return err
 	}
 
-	// now we can make our low-level ACME client
+	// Create a low-level ACME client.
 	client := &acme.Client{
-		Directory: s.ACME_SERVER_URL, // default pebble endpoint
+		Directory: s.ACME_SERVER_URL,
 		HTTPClient: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: s.INSECURE_SKIP_VERIFY, // REMOVE THIS FOR PRODUCTION USE!
+					InsecureSkipVerify: s.INSECURE_SKIP_VERIFY, // Remove this in production.
 				},
 			},
 		},
@@ -268,6 +330,7 @@ func (s *Storage) generateCertificate(domainMetadata *DomainMetadata) error {
 
 	var account acme.Account
 
+	// Retrieve or create an ACME account.
 	account, err = client.GetAccount(ctx, savedAccount)
 	if err != nil {
 		account, err = client.NewAccount(ctx, savedAccount)
@@ -276,73 +339,53 @@ func (s *Storage) generateCertificate(domainMetadata *DomainMetadata) error {
 		}
 	}
 
-	// now we can actually get a cert; first step is to create a new order
+	// Create a new ACME order for the certificate.
 	var ids []acme.Identifier
 	ids = append(ids, acme.Identifier{Type: "dns", Value: domainMetadata.Domain})
-
 	order := acme.Order{Identifiers: ids}
 	order, err = client.NewOrder(ctx, account, order)
 	if err != nil {
 		return fmt.Errorf("creating new order: %v", err)
 	}
 
-	// each identifier on the order should now be associated with an
-	// authorization object; we must make the authorization "valid"
-	// by solving any of the challenges offered for it
+	// Solve the challenges for the domain to authorize certificate issuance.
 	for _, authzURL := range order.Authorizations {
 		authz, err := client.GetAuthorization(ctx, account, authzURL)
 		if err != nil {
 			return fmt.Errorf("getting authorization %q: %v", authzURL, err)
 		}
 
-		var preferedChallenge acme.Challenge
+		var preferredChallenge acme.Challenge
 		for _, challenges := range authz.Challenges {
 			if challenges.Type == "http-01" {
-				preferedChallenge = challenges
+				preferredChallenge = challenges
 				break
 			}
 		}
 
-		s.DnsChallengeToken[preferedChallenge.Token] = domainMetadata.Domain
-		domainMetadata.DnsChallengeKey = preferedChallenge.KeyAuthorization
+		s.DnsChallengeToken[preferredChallenge.Token] = domainMetadata.Domain
+		domainMetadata.DnsChallengeKey = preferredChallenge.KeyAuthorization
 
-		// at this point, you must prepare to solve the challenge; how
-		// you do this depends on the challenge (see spec for details).
-		// usually this involves configuring an HTTP or TLS server, but
-		// it might also involve setting a DNS record (which can take
-		// time to propagate, depending on the provider!) - this example
-		// does NOT do this step for you - it's "bring your own solver."
-
-		// once you are ready to solve the challenge, let the ACME
-		// server know it should begin
-		preferedChallenge, err = client.InitiateChallenge(ctx, account, preferedChallenge)
+		// Initiate the challenge to start solving it.
+		preferredChallenge, err = client.InitiateChallenge(ctx, account, preferredChallenge)
 		if err != nil {
-			return fmt.Errorf("initiating challenge %q: %v", preferedChallenge.URL, err)
+			return fmt.Errorf("initiating challenge %q: %v", preferredChallenge.URL, err)
 		}
 
-		// now the challenge should be under way; at this point, we can
-		// continue initiating all the other challenges so that they are
-		// all being solved in parallel (this saves time when you have a
-		// large number of SANs on your certificate), but this example is
-		// simple, so we will just do one at a time; we wait for the ACME
-		// server to tell us the challenge has been solved by polling the
-		// authorization status
-
+		// Poll the authorization until it is valid.
 		authz, err = client.PollAuthorization(ctx, account, authz)
 		if err != nil {
 			return fmt.Errorf("solving challenge: %v", err)
 		}
 	}
 
-	// first you need a private key for your certificate
+	// Generate a private key for the certificate.
 	certPrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return fmt.Errorf("generating certificate key: %v", err)
 	}
 
-	// then you need a certificate request; here's a simple one - we need
-	// to fill out the template, then create the actual CSR, then parse it
-	// Certificate Signing Request (CSR)
+	// Create a certificate signing request (CSR).
 	csrTemplate := &x509.CertificateRequest{DNSNames: []string{domainMetadata.Domain}}
 	csrDER, err := x509.CreateCertificateRequest(rand.Reader, csrTemplate, certPrivateKey)
 	if err != nil {
@@ -354,67 +397,43 @@ func (s *Storage) generateCertificate(domainMetadata *DomainMetadata) error {
 		return fmt.Errorf("parsing generated CSR: %v", err)
 	}
 
-	// to request a certificate, we finalize the order; this function
-	// will poll the order status for us and return once the cert is
-	// ready (or until there is an error)
+	// Finalize the ACME order with the CSR to obtain the certificate.
 	order, err = client.FinalizeOrder(ctx, account, order, csr.Raw)
 	if err != nil {
 		return fmt.Errorf("finalizing order: %v", err)
 	}
 
-	// we can now download the certificate; the server should actually
-	// provide the whole chain, and it can even offer multiple chains
-	// of trust for the same end-entity certificate, so this function
-	// returns all of them; you can decide which one to use based on
-	// your own requirements
+	// Download the certificate chain from the ACME server.
 	certChains, err := client.GetCertificateChain(ctx, account, order.Certificate)
 	if err != nil {
 		return fmt.Errorf("downloading certs: %v", err)
 	}
 
-	// all done! store it somewhere safe, along with its key
+	// Store the certificate and private key in the domain metadata.
 	var fullChain []byte
 	for _, cert := range certChains {
-		// certPEM := fmt.Sprintf(`
-		// 	-----BEGIN CERTIFICATE-----
-		// 	%s
-		// 	-----END CERTIFICATE-----
-		// 	`, cert.ChainPEM)
-		// certBytes := []byte(certPEM)
-		// fullChain = append(fullChain, certBytes...)
 		fullChain = append(fullChain, cert.ChainPEM...)
 	}
 
-	// Marshal the private key to DER format
+	// Marshal the private key to DER format.
 	certPrivateKeyBytes, err := x509.MarshalECPrivateKey(certPrivateKey)
 	if err != nil {
 		return fmt.Errorf("marshaling private key: %v", err)
 	}
 
-	// // Encode the private key to PEM format
+	// Encode the private key to PEM format.
 	privateKeyPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "EC PRIVATE KEY",
 		Bytes: certPrivateKeyBytes,
 	})
 
-	// keyPEM := fmt.Sprintf(`
-	// -----BEGIN PRIVATE KEY-----
-	// %s
-	// -----END PRIVATE KEY-----
-	// `, privateKeyPEM)
-
-	// fmt.Printf("Certificate %q:\n%s\n\n", cert.URL, cert.ChainPEM)
+	// Update the domain metadata with the certificate and key.
 	domainMetadata.CertPemBlock = fullChain
-	// domainMetadata.KeyPemBlock = []byte(keyPEM)
 	domainMetadata.KeyPemBlock = privateKeyPEM
 	domainMetadata.Metadata = make(map[string]string)
 	domainMetadata.Metadata["cert_url"] = certChains[0].URL
 	domainMetadata.Metadata["cert_ca"] = certChains[0].CA
 	domainMetadata.Status = "active"
 
-	// fmt.Println(string(domainMetadata.CertPemBlock))
-	// fmt.Println(string(domainMetadata.KeyPemBlock))
-
-	// utils.LogStruct(domainMetadata)
 	return nil
 }

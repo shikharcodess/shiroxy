@@ -1,76 +1,106 @@
+// Author: @ShikharY10
+// Docs Author: ChatGPT
+
+// Package proxy provides functionality for handling reverse proxy operations, including
+// load balancing, TLS configurations, and request routing.
 package proxy
 
 import (
-	"crypto/tls"
-	"errors"
-	"fmt"
-	"log"
-	"net/http"
-	"net/url"
-	"runtime/debug"
-	"shiroxy/cmd/shiroxy/domains"
-	"shiroxy/cmd/shiroxy/webhook"
-	"shiroxy/pkg/logger"
-	"shiroxy/pkg/models"
-	"shiroxy/public"
-	"strings"
-	"sync"
+	"crypto/tls"                  // Provides TLS (Transport Layer Security) support.
+	"errors"                      // Defines error handling for functions.
+	"fmt"                         // Implements formatted I/O operations.
+	"log"                         // Implements simple logging capabilities.
+	"net/http"                    // Provides HTTP client and server implementations.
+	"net/url"                     // Implements URL parsing and manipulation.
+	"runtime/debug"               // Provides stack traces to aid debugging.
+	"shiroxy/cmd/shiroxy/domains" // Custom package for domain management.
+	"shiroxy/cmd/shiroxy/webhook" // Custom package for webhook handling.
+	"shiroxy/pkg/logger"          // Custom package for logging support.
+	"shiroxy/pkg/models"          // Custom package for configuration models.
+	"shiroxy/public"              // Custom package for public constants and assets.
+	"strings"                     // Implements string manipulation functions.
+	"sync"                        // Provides synchronization primitives.
 )
 
+// StartShiroxyHandler sets up and starts the Shiroxy reverse proxy with a load balancer.
+// Parameters:
+//   - configuration: *models.Config, contains the configuration settings.
+//   - storage: *domains.Storage, holds domain metadata.
+//   - webhookHandler: *webhook.WebhookHandler, handles webhooks.
+//   - logHandler: *logger.Logger, custom logging utility.
+//   - wg: *sync.WaitGroup, synchronization primitive to wait for goroutines.
+//
+// Returns:
+//   - *LoadBalancer: a load balancer instance configured with the specified settings.
+//   - error: error if any issues occur during setup.
 func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage, webhookHandler *webhook.WebhookHandler, logHandler *logger.Logger, wg *sync.WaitGroup) (*LoadBalancer, error) {
 
+	// Initialize a BackendServers instance to hold the backend server configurations.
 	var backendServers *BackendServers = &BackendServers{}
-	var servers []*Server
+	var servers []*Server // Slice to hold individual server configurations.
+
+	// Loop through each server specified in the configuration to set up routing.
 	for _, server := range configuration.Backend.Servers {
+		// Construct the URL for each server using its host and port from the configuration.
 		host := url.URL{
-			Scheme: configuration.Frontend.Mode,
+			Scheme: configuration.Frontend.Mode, // Scheme could be HTTP/HTTPS based on frontend mode.
 			Host:   fmt.Sprintf("%s:%s", server.Host, server.Port),
 		}
 
+		// Append the server to the servers slice.
 		servers = append(servers, &Server{
-			Id:    server.Id,
-			URL:   &host,
-			Alive: true,
+			Id:    server.Id, // Unique identifier for the server.
+			URL:   &host,     // URL of the backend server.
+			Alive: true,      // Indicates if the server is alive (default to true).
 
+			// Shiroxy structure to hold logger and request director for request URL rewriting.
 			Shiroxy: &Shiroxy{
-				Logger: logHandler,
+				Logger: logHandler, // Logger for handling log messages.
 				Director: func(req *http.Request) {
-					RewriteRequestURL(req, &host)
+					RewriteRequestURL(req, &host) // Modifies the request URL for backend routing.
 				},
 			},
-			Tags: strings.Split(server.Tags, ","),
+			Tags: strings.Split(server.Tags, ","), // Splits server tags by comma for tag-based routing.
 		})
 	}
 
+	// Set the servers to the BackendServers instance.
 	backendServers.Servers = servers
 
+	// Create a new LoadBalancer instance with the provided configuration.
 	loadbalancer := NewLoadBalancer(configuration, backendServers, webhookHandler, storage, wg)
+
+	// Load error page content to be used for "domain not found" errors.
 	domainNotFoundErrorResponse := loadErrorPageHtmlContent(public.DOMAIN_NOT_FOUND_ERROR, &configuration.Default.ErrorResponses)
 
+	// Loop through each bind (frontend port binding) specified in the configuration.
 	for _, bind := range configuration.Frontend.Bind {
+		// Validate the secure setting for "single" target mode.
 		if bind.Target == "single" && bind.SecureSetting.SingleTargetMode == "" {
 			logHandler.Log("securesetting field is required when bind target is set to 'single'", "Proxy", "Error")
-			panic("")
+			panic("") // Panic to indicate a critical configuration issue.
 		}
 
+		// Define the handler function for each frontend binding.
 		frontend := Frontends{
 			handlerFunc: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Recover from any panics during request handling to avoid crashing the server.
 				defer func() {
 					if rec := recover(); rec != nil {
 						if configuration.Default.Mode == "dev" {
 							fmt.Printf("Panic occurred: %v\n", rec)
-							debug.PrintStack()
+							debug.PrintStack() // Print stack trace for debugging in development mode.
 						}
 						logHandler.LogError(fmt.Sprintf("Recovered from panic: %v", rec), "Proxy", "Error")
 						w.Header().Add("Content-Type", "text/html")
-						w.WriteHeader(400)
+						w.WriteHeader(400) // Write a 400 Bad Request status.
 						_, err := w.Write([]byte(domainNotFoundErrorResponse))
 						if err != nil {
 							log.Printf("failed to write response: %v", err)
 						}
-						// http.Error(w, domainNotFoundErrorResponse, http.StatusInternalServerError)
 					}
 				}()
+				// HTTP to HTTPS redirection if enabled in the configuration.
 				if (configuration.Frontend.HttpToHttps) && r.URL.Port() == "80" && r.TLS == nil {
 					secureFrontend := loadbalancer.Frontends["443"]
 					if secureFrontend != nil {
@@ -80,14 +110,16 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 						loadbalancer.ServeHTTP(w, r)
 					}
 				} else {
-					loadbalancer.ServeHTTP(w, r)
+					loadbalancer.ServeHTTP(w, r) // Serve HTTP request through the load balancer.
 				}
 			}),
 		}
+		// Add the frontend handler to the load balancer.
 		loadbalancer.Frontends[bind.Port] = &frontend
 
+		// Check for valid target modes ("multiple" or "single").
 		if bind.Target != "multiple" && bind.Target != "single" {
-			logHandler.Log("Invalid target value in frontend configuraton", "Proxy", "Error")
+			logHandler.Log("Invalid target value in frontend configuration", "Proxy", "Error")
 			panic("")
 		}
 
@@ -95,6 +127,7 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 		var secure bool
 		var err error
 
+		// Create HTTP server based on the target mode.
 		if bind.Target == "multiple" {
 			server, secure, err = createMultipleTargetServer(&bind, storage, frontend.handlerFunc)
 		} else if bind.Target == "single" {
@@ -102,26 +135,38 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 		}
 
 		if err != nil {
-			return nil, err
+			return nil, err // Return error if server creation fails.
 		}
 
+		// Start the server using listenAndServe function.
 		listenAndServe(server, secure, logHandler, wg)
 	}
 	return loadbalancer, nil
 }
 
+// createMultipleTargetServer sets up an HTTP server for the "multiple" target mode with optional TLS support.
+// Parameters:
+//   - bindData: *models.FrontendBind, contains the server's binding information.
+//   - storage: *domains.Storage, holds domain metadata for TLS configuration.
+//   - handlerFunc: http.HandlerFunc, the request handler function.
+//
+// Returns:
+//   - *http.Server: an HTTP server instance.
+//   - bool: indicates if the server is secure (using TLS).
+//   - error: error if any issues occur during server creation.
 func createMultipleTargetServer(bindData *models.FrontendBind, storage *domains.Storage, handlerFunc http.HandlerFunc) (server *http.Server, secure bool, err error) {
 	if bindData.Secure {
+		// Secure server with TLS configuration.
 		server := &http.Server{
 			Addr:    fmt.Sprintf("%s:%s", bindData.Host, bindData.Port),
 			Handler: http.HandlerFunc(handlerFunc),
 			TLSConfig: &tls.Config{
 				ClientAuth: resolveSecurityPolicy(bindData.SecureSetting.SecureVerify),
 				GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+					// Load TLS certificate based on the domain metadata.
 					var cert tls.Certificate
 					var err error
-
-					var domainName string = strings.TrimSpace(info.ServerName)
+					domainName := strings.TrimSpace(info.ServerName)
 					domainMetadata := storage.DomainMetadata[domainName]
 
 					if domainMetadata == nil {
@@ -145,6 +190,7 @@ func createMultipleTargetServer(bindData *models.FrontendBind, storage *domains.
 
 		return server, true, nil
 	} else {
+		// Unsecured server.
 		server := &http.Server{
 			Addr:    fmt.Sprintf("%s:%s", bindData.Host, bindData.Port),
 			Handler: handlerFunc,
@@ -153,6 +199,9 @@ func createMultipleTargetServer(bindData *models.FrontendBind, storage *domains.
 	}
 }
 
+// createSingleTargetServer sets up an HTTP server for the "single" target mode with optional TLS support.
+// Parameters are similar to createMultipleTargetServer.
+// Returns similar values to createMultipleTargetServer.
 func createSingleTargetServer(bindData *models.FrontendBind, storage *domains.Storage, handlerFunc http.HandlerFunc) (server *http.Server, secure bool, err error) {
 	if bindData.Secure {
 		var tlsConfig *tls.Config
@@ -198,6 +247,7 @@ func createSingleTargetServer(bindData *models.FrontendBind, storage *domains.St
 
 		return server, true, nil
 	} else {
+		// Unsecured server.
 		server := &http.Server{
 			Addr:    fmt.Sprintf("%s:%s", bindData.Host, bindData.Port),
 			Handler: handlerFunc,
@@ -207,6 +257,8 @@ func createSingleTargetServer(bindData *models.FrontendBind, storage *domains.St
 	}
 }
 
+// resolveSecurityPolicy maps the given policy string to a tls.ClientAuthType value.
+// Returns the appropriate tls.ClientAuthType based on the policy.
 func resolveSecurityPolicy(policy string) tls.ClientAuthType {
 	if policy == "none" {
 		return tls.NoClientCert
@@ -219,8 +271,9 @@ func resolveSecurityPolicy(policy string) tls.ClientAuthType {
 	}
 }
 
+// loadErrorPageHtmlContent prepares the error page HTML content by replacing placeholders
+// in the provided HTML content with values from the configuration.
 func loadErrorPageHtmlContent(htmlContent string, config *models.ErrorRespons) string {
-
 	if config.ErrorPageButtonName == "" {
 		config.ErrorPageButtonName = "Shiroxy"
 	}
@@ -234,10 +287,11 @@ func loadErrorPageHtmlContent(htmlContent string, config *models.ErrorRespons) s
 	)
 
 	result := replacer.Replace(htmlContent)
-
 	return result
 }
 
+// listenAndServe starts the HTTP server in a goroutine and handles both secured and unsecured modes.
+// It also logs any server start errors.
 func listenAndServe(server *http.Server, secure bool, logHandler *logger.Logger, wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
