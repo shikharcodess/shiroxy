@@ -79,7 +79,7 @@ func (a *AnalyticsController) FetchServerDetails(c *gin.Context) {
 	response := map[string]interface{}{}
 
 	var servers []map[string]any = []map[string]any{}
-	for _, server := range a.Context.HealthChecker.Servers {
+	for _, server := range a.Context.HealthChecker.Servers.Servers {
 		serverReflect := reflect.ValueOf(server)
 		if serverReflect.Kind() == reflect.Ptr {
 			serverReflect = serverReflect.Elem()

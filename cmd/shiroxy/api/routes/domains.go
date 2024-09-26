@@ -21,9 +21,11 @@ func DomainRoutes(router *gin.RouterGroup, apiContext *types.APIContext) error {
 	domain := router.Group("/domain")
 	// domain.Use(middleware.CheckAccess())
 
-	domain.POST("/register", domainController.RegisterDomain)
-	domain.POST("/forcessl", domainController.ForceSSL)
-	domain.POST("/")
+	domain.POST("/", domainController.RegisterDomain)
+	domain.PATCH("/:domain", domainController.UpdateDomain)
+	domain.PATCH("/:domain/retryssl", domainController.ForceSSL)
+	domain.GET("/:domain", domainController.FetchDomainInfo)
+	domain.DELETE("/:domain", domainController.RemoveDomain)
 
 	return nil
 }

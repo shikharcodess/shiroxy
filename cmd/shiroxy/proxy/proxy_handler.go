@@ -4,8 +4,10 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"shiroxy/cmd/shiroxy/domains"
 	"shiroxy/cmd/shiroxy/webhook"
 	"shiroxy/pkg/logger"
@@ -17,11 +19,12 @@ import (
 
 func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage, webhookHandler *webhook.WebhookHandler, logHandler *logger.Logger, wg *sync.WaitGroup) (*LoadBalancer, error) {
 
+	var backendServers *BackendServers = &BackendServers{}
 	var servers []*Server
 	for _, server := range configuration.Backend.Servers {
 		host := url.URL{
-			Scheme: configuration.Default.Mode,
-			Host:   fmt.Sprintf("%s:%s", server.Host, server.Port), // The actual address where domain1's server is running
+			Scheme: configuration.Frontend.Mode,
+			Host:   fmt.Sprintf("%s:%s", server.Host, server.Port),
 		}
 
 		servers = append(servers, &Server{
@@ -35,10 +38,13 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 					RewriteRequestURL(req, &host)
 				},
 			},
+			Tags: strings.Split(server.Tags, ","),
 		})
 	}
 
-	loadbalancer := NewLoadBalancer(configuration, servers, webhookHandler, wg)
+	backendServers.Servers = servers
+
+	loadbalancer := NewLoadBalancer(configuration, backendServers, webhookHandler, storage, wg)
 	domainNotFoundErrorResponse := loadErrorPageHtmlContent(public.DOMAIN_NOT_FOUND_ERROR, &configuration.Default.ErrorResponses)
 
 	for _, bind := range configuration.Frontend.Bind {
@@ -51,8 +57,18 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 			handlerFunc: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				defer func() {
 					if rec := recover(); rec != nil {
+						if configuration.Default.Mode == "dev" {
+							fmt.Printf("Panic occurred: %v\n", rec)
+							debug.PrintStack()
+						}
 						logHandler.LogError(fmt.Sprintf("Recovered from panic: %v", rec), "Proxy", "Error")
-						http.Error(w, domainNotFoundErrorResponse, http.StatusInternalServerError)
+						w.Header().Add("Content-Type", "text/html")
+						w.WriteHeader(400)
+						_, err := w.Write([]byte(domainNotFoundErrorResponse))
+						if err != nil {
+							log.Printf("failed to write response: %v", err)
+						}
+						// http.Error(w, domainNotFoundErrorResponse, http.StatusInternalServerError)
 					}
 				}()
 				if (configuration.Frontend.HttpToHttps) && r.URL.Port() == "80" && r.TLS == nil {
@@ -209,7 +225,7 @@ func loadErrorPageHtmlContent(htmlContent string, config *models.ErrorRespons) s
 		config.ErrorPageButtonName = "Shiroxy"
 	}
 	if config.ErrorPageButtonUrl == "" {
-		config.ErrorPageButtonUrl = "https://github.com/ShikharY10/shiroxy/issues"
+		config.ErrorPageButtonUrl = "https://github.com/ShikharY10/shiroxy"
 	}
 
 	replacer := strings.NewReplacer(

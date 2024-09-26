@@ -104,7 +104,7 @@ var DOMAIN_NOT_FOUND_ERROR string = `<!DOCTYPE html>"
         <div class="shiroxy-logo-div">
             <img
               class="shiroxy-logo"
-              src="/home/shikharcode/Main/opensource/shiroxy/media/shiroxy_logo.png"
+              src="https://raw.githubusercontent.com/ShikharY10/shiroxy/refs/heads/main/media/shiroxy_logo_.png"
               alt="Shiroxy Logo"
             />
         </div>
@@ -113,7 +113,7 @@ var DOMAIN_NOT_FOUND_ERROR string = `<!DOCTYPE html>"
       <div class="error-image-div">
         <img
           class="error-image"
-          src="/home/shikharcode/Main/opensource/shiroxy/public/404_new.svg"
+          src="https://raw.githubusercontent.com/ShikharY10/shiroxy/1bfd4449fc04ac09a7626afb038572491c997714/public/404_new.svg"
           alt="Centered SVG"
         />
       </div>

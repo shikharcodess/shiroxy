@@ -72,6 +72,7 @@ type FrontendBind struct {
 }
 
 type Frontend struct {
+	Mode            string         `json:"mode"`
 	HttpToHttps     bool           `json:"httptohttps"`
 	Bind            []FrontendBind `json:"bind"`
 	Options         []string       `json:"options"`
@@ -84,12 +85,16 @@ type Backend struct {
 	Balance                    string `json:"balance"`
 	HealthCheckMode            string `json:"healthcheckmode"`
 	HealthCheckTriggerDuration int    `json:"healthchecktriggerduration"`
+	Tagrule                    string `json:"tagrule"`
+	NoServerAction             string `json:"noserveraction"`
 	Servers                    []struct {
 		Id        string `json:"id"`
 		Host      string `json:"host"`
 		Port      string `json:"port"`
 		HealthUrl string `json:"healthurl"`
+		Tags      string `json:"tags"`
 	}
+	Tags []string `json:"tags"`
 }
 
 type Logging struct {

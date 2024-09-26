@@ -20,8 +20,8 @@ func BackendsRoutes(router *gin.RouterGroup, context *types.APIContext) error {
 	}
 	backend := router.Group("/backends")
 	backend.GET("/", backendsController.FetchAllBackendServers)
-	backend.GET("/register", backendsController.RegisterNewBackendServer)
-	backend.GET("/remove", backendsController.RemoveBackendServer)
+	backend.POST("/register", backendsController.RegisterNewBackendServer)
+	backend.POST("/remove", backendsController.RemoveBackendServer)
 
 	return nil
 }

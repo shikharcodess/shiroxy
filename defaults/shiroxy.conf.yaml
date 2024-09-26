@@ -16,7 +16,7 @@ version: "1.0.0"
 # that are global to shiroxy
 default:
   # The mode in which shiroxy will be running.
-  mode: "http"
+  mode: "dev"
 
   # Path where the logs will be stored. It is recommended not to
   # change the default path unless you know what you are doing.
@@ -77,11 +77,11 @@ default:
   # look like and what happens when someone clicks on that button.
   errorresponses:
     # This sets the label of that button
-    errorpagebuttonname: "Comeata"
+    errorpagebuttonname: "Shiroxy"
 
     # This sets the URL that the button leads to after someone
     # clicks on it.
-    errorpagebuttonurl: "https://youtube.com"
+    errorpagebuttonurl: "https://github.com/ShikharY10/shiroxy"
   
   user:
     email: "yshikharfzd10@gmail.com"
@@ -89,9 +89,12 @@ default:
 
   adminapi:
     port: "2210"
+    basepath: "admin"
+    
 
 # This section specifies settings related to the frontend of the reverse proxy
 frontend:
+  mode: "http"
   # backend: "shiroxy-test"
   # fallbackbackend: ""
   httptohttps: true
@@ -191,8 +194,17 @@ backend:
   name: "shiroxy-test"
 
   # This indicates which load balancing algorithm to use. Shiroxy supports
-  # `round-robin`, `sticky-session`, and `least-count`.
+  # `round-robin`, `sticky-session`, and `least-count`. Default algorithm is round-robin.
   balance: "round-robin"
+
+  # This indicates the rule for tag based routing. By default if not specified
+  # its value will be "none" which means no matter what are the tags a server 
+  # have, if a domain comes with a request with no tags in there metadata then
+  # a server will picked based on the specified or default value of the balance
+  # algorithm.
+  tagrule: "none"
+
+  noserveraction: "strict"
 
   # This section sets how many servers that backend will have.
   servers:
@@ -204,11 +216,27 @@ backend:
       # This sets the health URL of that service. If not set, the base URL
       # will be used as the health URL (i.e., `host:port`).
       healthurl: ""
+      tags: "api"
 
     - id: "<backend-name-server-2>"
       host: ""
       port: "8002"
       healthurl: ""
+      tags: "app"
+
+    # - id: "<backend-name-server-2>"
+    #   host: ""
+    #   port: "8002"
+    #   healthurl: ""
+    #   tags: "worker1,workers"
+
+    # - id: "<backend-name-server-2>"
+    #   host: ""
+    #   port: "8002"
+    #   healthurl: ""
+    #   tags: "worker2,workers"
+      
+
 
   # This sets the mode through which the health of the server will be checked.
   # If set to `url`, you have to provide the health URL in the server section

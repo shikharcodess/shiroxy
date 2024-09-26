@@ -3,6 +3,7 @@ package controllers
 import (
 	"shiroxy/cmd/shiroxy/api/middlewares"
 	"shiroxy/cmd/shiroxy/types"
+	"shiroxy/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,13 +13,13 @@ type DomainController struct {
 	Middlewares *middlewares.Middlewares
 }
 
-type registerDomainRequestBody struct {
-	Domain   string            `json:"domain"`
-	Email    string            `json:"email"`
-	Metadata map[string]string `json:"user_name"`
-}
-
 func (d *DomainController) RegisterDomain(c *gin.Context) {
+	type registerDomainRequestBody struct {
+		Domain   string            `json:"domain"`
+		Email    string            `json:"email"`
+		Metadata map[string]string `json:"metadata"`
+	}
+
 	var requestBody registerDomainRequestBody
 	err := c.ShouldBindJSON(&requestBody)
 	if err != nil {
@@ -96,10 +97,69 @@ func (d *DomainController) ForceSSL(c *gin.Context) {
 	}, 200)
 }
 
-func (d *DomainController) UpdateDomain(c *gin.Context) {}
+func (d *DomainController) UpdateDomain(c *gin.Context) {
+	type UpdateDomainRequestBody struct {
+		Metadata map[string]string `json:"metadata"`
+	}
 
-func (d *DomainController) RemoveDomain(c *gin.Context) {}
+	domainName := c.Param("domain")
 
-func (d *DomainController) FetchDomainInfo(c *gin.Context) {}
+	var requestBody UpdateDomainRequestBody
+	err := c.BindJSON(&requestBody)
+	if err != nil {
+		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
+			Success: false,
+			Error:   err.Error(),
+		}, 400)
+		return
+	}
 
-func (d *DomainController) FetchCertificateExpiryInfo(c *gin.Context) {}
+	domainData := d.Context.DomainStorage.DomainMetadata[domainName]
+	if requestBody.Metadata != nil {
+		for key, value := range requestBody.Metadata {
+			domainData.Metadata[key] = value
+		}
+	}
+
+	data := utils.DestructureStruct(domainData)
+
+	d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
+		Success: true,
+		Error:   "",
+		Data:    data,
+	}, 200)
+}
+
+func (d *DomainController) RemoveDomain(c *gin.Context) {
+	domainName := c.Param("domain")
+	domainData := d.Context.DomainStorage.DomainMetadata[domainName]
+
+	err := d.Context.DomainStorage.RemoveDomain(domainName)
+	if err != nil {
+		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
+			Success: false,
+			Error:   err.Error(),
+		}, 400)
+		return
+	}
+
+	data := utils.DestructureStruct(domainData)
+
+	d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
+		Success: true,
+		Error:   "",
+		Data:    data,
+	}, 200)
+}
+
+func (d *DomainController) FetchDomainInfo(c *gin.Context) {
+	domainName := c.Param("domain")
+
+	domainData := d.Context.DomainStorage.DomainMetadata[domainName]
+	data := utils.DestructureStruct(domainData)
+	d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
+		Success: true,
+		Error:   "",
+		Data:    data,
+	}, 200)
+}

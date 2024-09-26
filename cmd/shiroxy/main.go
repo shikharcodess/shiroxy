@@ -6,6 +6,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"runtime/debug"
 	"shiroxy/cmd/shiroxy/analytics"
 	"shiroxy/cmd/shiroxy/api"
 	"shiroxy/cmd/shiroxy/domains"
@@ -71,8 +72,12 @@ func main() {
 		shutdown.HandleGracefulShutdown(false, nil, configuration, storageHandler, logHandler, analyticsConfiguration, &wg)
 	}()
 	defer func() {
-		fmt.Println("Shutdown defer Fired...")
+		// fmt.Println("Shutdown defer Fired...")
 		if r := recover(); r != nil {
+			if configuration.Default.Mode == "dev" {
+				fmt.Printf("Panic occurred: %v\n", r)
+				debug.PrintStack()
+			}
 			shutdown.HandleGracefulShutdown(true, r, configuration, storageHandler, logHandler, analyticsConfiguration, &wg)
 		}
 	}()

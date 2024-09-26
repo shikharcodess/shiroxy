@@ -21,24 +21,25 @@ func (b *BackendController) FetchAllBackendServers(c *gin.Context) {
 	response := map[string]interface{}{}
 
 	var servers []map[string]any = []map[string]any{}
-	fmt.Println("1")
 
-	for _, server := range b.Context.LoadBalancer.Servers {
-		fmt.Println("server: ", server.Id)
+	for _, server := range b.Context.LoadBalancer.Servers.Servers {
 		serverReflect := reflect.ValueOf(server)
 		if serverReflect.Kind() == reflect.Ptr {
 			serverReflect = serverReflect.Elem()
 		}
+
 		serverJson := map[string]any{}
 		for i := 0; i < serverReflect.NumField(); i++ {
-			serverJson[serverReflect.Type().Field(i).Name] = serverReflect.Field(i).Interface()
+			if serverReflect.Type().Field(i).Name != "Shiroxy" {
+				serverJson[serverReflect.Type().Field(i).Name] = serverReflect.Field(i).Interface()
+			}
+
 		}
 
 		servers = append(servers, serverJson)
 	}
 
 	response["servers"] = servers
-
 	b.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 		Success: true,
 		Data:    response,
@@ -94,7 +95,7 @@ func (b *BackendController) RegisterNewBackendServer(c *gin.Context) {
 		},
 	}
 
-	b.Context.LoadBalancer.Servers = append(b.Context.LoadBalancer.Servers, &server)
+	b.Context.LoadBalancer.Servers.Servers = append(b.Context.LoadBalancer.Servers.Servers, &server)
 
 	b.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 		Success: true,
@@ -122,4 +123,5 @@ func (b *BackendController) RemoveBackendServer(c *gin.Context) {
 		}, 400)
 		return
 	}
+
 }
