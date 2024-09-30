@@ -61,6 +61,7 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 				},
 			},
 			Tags: strings.Split(server.Tags, ","), // Splits server tags by comma for tag-based routing.
+			Lock: &sync.RWMutex{},
 		})
 	}
 

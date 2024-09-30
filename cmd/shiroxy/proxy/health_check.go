@@ -89,14 +89,20 @@ func (hc *HealthChecker) CheckHealth(server *Server) bool {
 
 	if err != nil || resp.StatusCode != http.StatusOK {
 		// If an error occurs or the server responds with a non-OK status, mark the server as unhealthy.
+		server.Lock.Lock()
 		server.Alive = false
-		if server.FireWebhookOnFirstHealthCheck {
+		localServer := *server
+		server.Lock.Unlock()
+
+		if localServer.FireWebhookOnFirstHealthCheck {
 			// Fire a webhook for server registration success if it's the first health check.
 			data := map[string]string{
-				"host": server.URL.Host,
+				"host": localServer.URL.Host,
 			}
 			hc.webhookHandler.Fire("backendserver.register.success", data)
+			server.Lock.Lock()
 			server.FireWebhookOnFirstHealthCheck = false
+			server.Lock.Unlock()
 		}
 		if resp != nil {
 			resp.Body.Close() // Close the response body if it's not nil.
@@ -104,14 +110,21 @@ func (hc *HealthChecker) CheckHealth(server *Server) bool {
 		return false
 	} else {
 		// If the server is healthy, mark it as alive.
+		server.Lock.Lock()
 		server.Alive = true
-		if !server.FireWebhookOnFirstHealthCheck {
+		localServer := *server
+		server.Lock.Unlock()
+
+		if !localServer.FireWebhookOnFirstHealthCheck {
 			// Fire a webhook for server registration failure if it's the first health check.
 			data := map[string]string{
-				"host": server.URL.Host,
+				"host": localServer.URL.Host,
 			}
+
 			hc.webhookHandler.Fire("backendserver.register.failed", data)
+			server.Lock.Lock()
 			server.FireWebhookOnFirstHealthCheck = false
+			server.Lock.Unlock()
 		}
 		if resp != nil {
 			resp.Body.Close() // Close the response body if it's not nil.

@@ -50,6 +50,7 @@ type Server struct {
 	Shiroxy                       *Shiroxy `json:"-"`                                  // Shiroxy reverse proxy instance for the server.
 	FireWebhookOnFirstHealthCheck bool     `json:"fire_webhook_on_first_health_check"` // Flag to trigger webhook on first successful health check.
 	Tags                          []string `json:"-"`                                  // Tags for routing purposes.
+	Lock                          *sync.RWMutex
 }
 
 // LoadBalancer implements the main load-balancing logic, supporting various routing mechanisms.

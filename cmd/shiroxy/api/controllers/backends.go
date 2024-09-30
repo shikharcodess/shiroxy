@@ -8,6 +8,8 @@ import (
 	"shiroxy/cmd/shiroxy/api/middlewares"
 	"shiroxy/cmd/shiroxy/proxy"
 	"shiroxy/cmd/shiroxy/types"
+	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 )
@@ -52,6 +54,7 @@ func (b *BackendController) RegisterNewBackendServer(c *gin.Context) {
 		Host      string `json:"host"`
 		Port      string `json:"port"`
 		HealthUrl string `json:"health_url"`
+		Tags      string `json:"tags"`
 	}
 	var requestBody RegisternewBackendServerRequestBody
 	err := c.BindJSON(&requestBody)
@@ -73,8 +76,12 @@ func (b *BackendController) RegisterNewBackendServer(c *gin.Context) {
 		Host:   requestBody.HealthUrl, // The actual address where domain1's server is running
 	}
 
+	s := ""
+	strings.Split(s, "")
+
 	server := proxy.Server{
 		Id:                            requestBody.Id,
+		Tags:                          strings.Split(requestBody.Tags, ","),
 		URL:                           &serverUrl,
 		HealthCheckUrl:                &healthCheckUrl,
 		Alive:                         false,
@@ -93,6 +100,7 @@ func (b *BackendController) RegisterNewBackendServer(c *gin.Context) {
 				}
 			},
 		},
+		Lock: &sync.RWMutex{},
 	}
 
 	b.Context.LoadBalancer.Servers.Servers = append(b.Context.LoadBalancer.Servers.Servers, &server)
@@ -103,25 +111,16 @@ func (b *BackendController) RegisterNewBackendServer(c *gin.Context) {
 }
 
 func (b *BackendController) RemoveBackendServer(c *gin.Context) {
-	type RemoveBackendServerRequestBody struct {
-		Id string `json:"id"`
-	}
-	var requestBody RemoveBackendServerRequestBody
-	err := c.BindJSON(&requestBody)
-	if err != nil {
-		b.Middlewares.WriteResponse(c, middlewares.ApiResponse{
-			Success: false,
-			Error:   err.Error(),
-		}, 400)
-		return
-	}
+	backendId := c.Param("id")
 
-	if requestBody.Id == "" {
+	if backendId == "" {
 		b.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 			Success: false,
 			Error:   "field id is required",
 		}, 400)
 		return
 	}
+
+	// TODO: Implement Remove Backend
 
 }

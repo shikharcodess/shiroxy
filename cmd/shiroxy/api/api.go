@@ -8,11 +8,14 @@ import (
 	"shiroxy/cmd/shiroxy/proxy"
 	"shiroxy/cmd/shiroxy/types"
 	"shiroxy/cmd/shiroxy/webhook"
+	"shiroxy/docs"
 	"shiroxy/pkg/logger"
 	"shiroxy/pkg/models"
 	"sync"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // type ShiroxyAPI struct {
@@ -39,6 +42,10 @@ func StartShiroxyAPI(config *models.Config, loadBalancer *proxy.LoadBalancer, do
 	account[config.Default.User.Email] = config.Default.User.Secret
 
 	newRouter := gin.New()
+
+	// docs.SwaggerInfo.BasePath = "/api/v1"
+	docs.SwaggerInfo.BasePath = "/v1"
+	newRouter.GET("/docs/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	router := newRouter.Group("/v1")
 	router.GET("/health", func(ctx *gin.Context) {
