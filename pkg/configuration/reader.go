@@ -5,6 +5,7 @@ import (
 	"os"
 	"shiroxy/pkg/loader"
 	"shiroxy/pkg/models"
+	"sync"
 
 	"github.com/spf13/viper"
 )
@@ -12,6 +13,7 @@ import (
 func ConfigReader(configUrl string) (*models.Config, error) {
 
 	loaderController := loader.ProgressLoaderPayload{
+		Lock:           &sync.RWMutex{},
 		Close:          make(chan bool),
 		Failed:         false,
 		Content:        `-\|/`,
@@ -41,7 +43,6 @@ func ConfigReader(configUrl string) (*models.Config, error) {
 		loaderController.CloseLoader(true, "", 1000)
 		return nil, errors.New("Unable to unmarshal into struct:" + err.Error())
 	}
-
 	loaderController.CloseLoader(false, "", 1000)
 	return &config, nil
 }
