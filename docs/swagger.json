@@ -1,0 +1,152 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Shiroxy",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://127.0.0.1:2210"
+        }
+    ],
+    "paths": {
+        "{{LOCAL_BASE_URL}}/domain/register": {
+            "post": {
+                "summary": "register domain",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "example": {
+                                    "domain": "shikharcode.in",
+                                    "email": "yshikharfzd10@gmail.com",
+                                    "metadata": {
+                                        "name": "Shikhar Yadav"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "{{LOCAL_BASE_URL}}/v1/domain/<domain-name>/retryssl": {
+            "patch": {
+                "summary": "Retry SSL",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                }
+            }
+        },
+        "{{LOCAL_BASE_URL}}/v1/domain/<domain-name>": {
+            "patch": {
+                "summary": "Update One Domain",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "example": {
+                                    "metadata": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "summary": "Fetch One Domain",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Remove One Domain",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                }
+            }
+        },
+        "{{LOCAL_BASE_URL}}/v1/analytics/systems": {
+            "get": {
+                "summary": "Fetch System Analytics",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                }
+            }
+        },
+        "{{LOCAL_BASE_URL}}/v1/analytics/domains": {
+            "get": {
+                "summary": "Fetch Domain Analytics",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                }
+            }
+        },
+        "{{LOCAL_BASE_URL}}/v1/backends": {
+            "get": {
+                "summary": "Fetch All Backend Servers",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                }
+            },
+            "post": {
+                "summary": "Add New Backend Server",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "example": {
+                                    "id": "<id>",
+                                    "host": "<host>",
+                                    "port": "<port>",
+                                    "health_url": "<health-url>",
+                                    "tags": ""
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "{{LOCAL_BASE_URL}}/v1/backends/<backend-id>": {
+            "delete": {
+                "summary": "Remove One Backend",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                }
+            }
+        }
+    }
+}
