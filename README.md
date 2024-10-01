@@ -7,7 +7,7 @@
 </div>
 <!-- <hr> -->
 
-Welcome to the Shirxoy! This Go-based reverse proxy is designed to provide seamless and secure web traffic management with the following key features:
+Welcome to the Shiroxy! This Go-based reverse proxy is designed to provide seamless and secure web traffic management with the following key features:
 
 ## Key Features
 
@@ -20,6 +20,7 @@ Welcome to the Shirxoy! This Go-based reverse proxy is designed to provide seaml
 
 - [Getting Started](#getting-started)
 - [Configuration File](https://github.com/ShikharY10/shiroxy/blob/main/configuration.md)
+- [API Docs](https://github.com/ShikharY10/shiroxy/blob/main/docs/api.md)
 - [Contributing](#contributing)
 - [License](https://github.com/ShikharY10/shiroxy/blob/main/LICENSE)
 
