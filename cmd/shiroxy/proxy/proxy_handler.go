@@ -51,7 +51,7 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 		servers = append(servers, &Server{
 			Id:    server.Id, // Unique identifier for the server.
 			URL:   &host,     // URL of the backend server.
-			Alive: true,      // Indicates if the server is alive (default to true).
+			Alive: false,     // Indicates if the server is alive (default to false).
 
 			// Shiroxy structure to hold logger and request director for request URL rewriting.
 			Shiroxy: &Shiroxy{
@@ -60,9 +60,11 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 					RewriteRequestURL(req, &host) // Modifies the request URL for backend routing.
 				},
 			},
-			Tags: strings.Split(server.Tags, ","), // Splits server tags by comma for tag-based routing.
-			Lock: &sync.RWMutex{},
+			Tags:           strings.Split(server.Tags, ","), // Splits server tags by comma for tag-based routing.
+			Lock:           &sync.RWMutex{},
+			HealthCheckUrl: server.HealthUrl,
 		})
+
 	}
 
 	// Set the servers to the BackendServers instance.

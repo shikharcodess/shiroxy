@@ -45,7 +45,7 @@ type ServerByTags struct {
 type Server struct {
 	Id                            string   `json:"id"`                                 // Unique identifier for the server.
 	URL                           *url.URL `json:"url"`                                // URL of the server.
-	HealthCheckUrl                *url.URL `json:"health_check_url"`                   // URL used for health checks.
+	HealthCheckUrl                string   `json:"health_check_url"`                   // URL used for health checks.
 	Alive                         bool     `json:"alive"`                              // Indicates if the server is healthy.
 	Shiroxy                       *Shiroxy `json:"-"`                                  // Shiroxy reverse proxy instance for the server.
 	FireWebhookOnFirstHealthCheck bool     `json:"fire_webhook_on_first_health_check"` // Flag to trigger webhook on first successful health check.
@@ -62,7 +62,7 @@ type LoadBalancer struct {
 	Servers             *BackendServers
 	ServerByTag         *ServerByTags
 	Frontends           map[string]*Frontends
-	Mutex               sync.Mutex
+	Mutex               sync.RWMutex
 	RoutingDetailsByTag map[string]*TagRoutingDetails
 	HealthChecker       *HealthChecker
 	DomainStorage       *domains.Storage
@@ -145,29 +145,108 @@ func (lb *LoadBalancer) ExtractTags() {
 // getNextServerRoundRobin selects the next server in a round-robin manner for the specified tag.
 // Returns the selected server.
 func (lb *LoadBalancer) getNextServerRoundRobin(tag string, servers []*Server) *Server {
-	lb.Mutex.Lock()
-	defer lb.Mutex.Unlock()
-
 	var backendServers *BackendServers
 	var routingDetails *TagRoutingDetails
 
+	lb.Mutex.RLock()
 	if tag != "" {
 		backendServers = lb.ServerByTag.Servers[tag]
 		routingDetails = lb.RoutingDetailsByTag[tag]
 		if backendServers == nil || routingDetails == nil {
+			lb.Mutex.RUnlock()
 			return nil // No servers for the tag.
 		}
 	} else {
 		backendServers = lb.Servers
 		routingDetails = lb.RoutingDetailsByTag[""]
 	}
+	lb.Mutex.RUnlock()
 
-	// Select the next server in the list.
-	server := backendServers.Servers[routingDetails.Current]
-	routingDetails.Current = (routingDetails.Current + 1) % len(backendServers.Servers)
+	var server *Server
+	serverlistLength := len(backendServers.Servers)
 
-	return server
+	index := routingDetails.Current % serverlistLength
+
+	for i := 0; i < serverlistLength; i++ {
+		server = backendServers.Servers[index]
+
+		server.Lock.RLock()
+		if server.Alive {
+			routingDetails.Current = (index + 1) % serverlistLength
+			server.Lock.RUnlock() // Ensure lock is released before returning
+			return server
+		}
+		server.Lock.RUnlock() // Release the lock if the server is not alive
+
+		index = (index + 1) % serverlistLength
+	}
+
+	return nil // Return nil if no alive server is found
 }
+
+// // getNextServerRoundRobin selects the next server in a round-robin manner for the specified tag.
+// // Returns the selected server.
+// func (lb *LoadBalancer) getNextServerRoundRobin(tag string, servers []*Server) *Server {
+// 	fmt.Println("getNextServerRoundRobin: ", tag)
+
+// 	var backendServers *BackendServers
+// 	var routingDetails *TagRoutingDetails
+
+// 	lb.Mutex.RLock()
+// 	if tag != "" {
+// 		backendServers = lb.ServerByTag.Servers[tag]
+// 		routingDetails = lb.RoutingDetailsByTag[tag]
+// 		if backendServers == nil || routingDetails == nil {
+// 			return nil // No servers for the tag.
+// 		}
+// 	} else {
+// 		backendServers = lb.Servers
+// 		routingDetails = lb.RoutingDetailsByTag[""]
+// 	}
+// 	lb.Mutex.RUnlock()
+
+// 	var server *Server
+// 	serverlistLength := len(backendServers.Servers)
+// 	fmt.Println("serverlistLength: ", serverlistLength)
+
+// 	index := (routingDetails.Current + 0) % serverlistLength
+
+// 	fmt.Println("index: ", index)
+
+// 	server = backendServers.Servers[index]
+// 	fmt.Println("server: ", server)
+// 	server.Lock.RLock()
+// 	if server.Alive {
+// 		server.Lock.RUnlock()
+// 		routingDetails.Current = (index + 1) % serverlistLength
+// 		return server
+// 	}
+// 	server.Lock.RUnlock()
+
+// 	fmt.Println("Read Lock unlocked: ", server)
+
+// 	for i := 0; i < serverlistLength; i++ {
+// 		index = (index + 1) % serverlistLength
+// 		server = backendServers.Servers[index]
+
+// 		fmt.Println("===============================")
+// 		fmt.Println("Index: ", index, " | server: ", server)
+// 		fmt.Println("===============================")
+
+// 		server.Lock.RLock()
+// 		if server.Alive {
+// 			routingDetails.Current = (index + 1) % serverlistLength
+// 			return server
+// 		}
+// 		server.Lock.RUnlock()
+// 	}
+
+// 	fmt.Println("===============================")
+// 	fmt.Println("server: ", server)
+// 	fmt.Println("===============================")
+
+// 	return server
+// }
 
 // getLeastConnectionServer selects the server with the least number of active connections for the specified tag.
 // Returns the selected server.
@@ -270,26 +349,54 @@ func (lb *LoadBalancer) serveHTTP(w http.ResponseWriter, r *ShiroxyRequest) {
 			server = lb.selectServerBasedOnRule(clientIP, "")
 		}
 
+		// fmt.Println("SERVER FOUND==========: ", server)
+
 		// If server is found, forward the request.
+
 		if server != nil {
-			err := server.Shiroxy.ServeHTTP(w, r)
-			if err != nil {
-				server.Alive = false
-				if r.RetryCount <= lb.MaxRetry {
-					r.RetryCount++
-					lb.serveHTTP(w, r)
-				} else {
-					// Load error page on server failure.
-					shiroxyNotReadyResponse := loadErrorPageHtmlContent(public.DOMAIN_NOT_FOUND_ERROR, &models.ErrorRespons{
-						ErrorPageButtonName: "Shiroxy",
-						ErrorPageButtonUrl:  "",
-					})
-					w.Header().Add("Content-Type", "text/html")
-					w.WriteHeader(400)
-					_, err := w.Write([]byte(shiroxyNotReadyResponse))
-					if err != nil {
-						log.Printf("failed to write response: %v", err)
+			server.Lock.RLock()
+			alive := server.Alive
+			instanceOfServer := *server
+			server.Lock.RUnlock()
+
+			if alive {
+				err := instanceOfServer.Shiroxy.ServeHTTP(w, r)
+				if err != nil {
+
+					if r.RetryCount <= lb.MaxRetry {
+						r.RetryCount++
+						lb.serveHTTP(w, r)
+					} else {
+
+						server.Lock.Lock()
+						server.Alive = false
+						server.Lock.Unlock()
+
+						// Load error page on server failure.
+						shiroxyNotReadyResponse := loadErrorPageHtmlContent(public.DOMAIN_NOT_FOUND_ERROR, &models.ErrorRespons{
+							ErrorPageButtonName: "Shiroxy",
+							ErrorPageButtonUrl:  "",
+						})
+						w.Header().Add("Content-Type", "text/html")
+						w.WriteHeader(400)
+						_, err := w.Write([]byte(shiroxyNotReadyResponse))
+						if err != nil {
+							log.Printf("failed to write response: %v", err)
+						}
 					}
+				}
+				return
+			} else {
+				// Load error page if the load balancer is not ready.
+				shiroxyNotReadyResponse := loadErrorPageHtmlContent(public.SHIROXY_NOT_READY, &models.ErrorRespons{
+					ErrorPageButtonName: "Shiroxy",
+					ErrorPageButtonUrl:  "",
+				})
+				w.Header().Add("Content-Type", "text/html")
+				w.WriteHeader(400)
+				_, err := w.Write([]byte(shiroxyNotReadyResponse))
+				if err != nil {
+					log.Printf("failed to write response: %v", err)
 				}
 			}
 		} else {

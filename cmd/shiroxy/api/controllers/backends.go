@@ -71,19 +71,11 @@ func (b *BackendController) RegisterNewBackendServer(c *gin.Context) {
 		Host:   fmt.Sprintf("%s:%s", requestBody.Host, requestBody.Port), // The actual address where domain1's server is running
 	}
 
-	healthCheckUrl := url.URL{
-		Scheme: "http",
-		Host:   requestBody.HealthUrl, // The actual address where domain1's server is running
-	}
-
-	s := ""
-	strings.Split(s, "")
-
 	server := proxy.Server{
 		Id:                            requestBody.Id,
 		Tags:                          strings.Split(requestBody.Tags, ","),
 		URL:                           &serverUrl,
-		HealthCheckUrl:                &healthCheckUrl,
+		HealthCheckUrl:                requestBody.HealthUrl,
 		Alive:                         false,
 		FireWebhookOnFirstHealthCheck: true,
 		Shiroxy: &proxy.Shiroxy{

@@ -5,8 +5,10 @@
 package proxy
 
 import (
+	"fmt"
 	"net/http"
 	"shiroxy/cmd/shiroxy/webhook" // Custom package for handling webhooks.
+	"strings"
 	"sync"
 	"time"
 )
@@ -83,9 +85,26 @@ func (hc *HealthChecker) StartHealthCheck() {
 // Returns:
 //   - bool: true if the server is healthy, false otherwise.
 func (hc *HealthChecker) CheckHealth(server *Server) bool {
-	defer hc.wg.Done()                            // Decrement WaitGroup counter when done.
-	client := &http.Client{}                      // Create a new HTTP client for making the health check request.
-	resp, err := client.Head(server.URL.String()) // Send an HTTP HEAD request to the server's URL.
+	defer hc.wg.Done()       // Decrement WaitGroup counter when done.
+	client := &http.Client{} // Create a new HTTP client for making the health check request.
+
+	var url string = ""
+	if server.HealthCheckUrl != "" {
+		url = server.HealthCheckUrl
+	} else {
+		sURL := server.URL.String()
+		hostArray := strings.Split(sURL, ":")
+		host := hostArray[0]
+		port := hostArray[1]
+
+		if host == "" {
+			url = fmt.Sprintf("http://%s:%s", "127.0.0.1", port)
+		} else {
+			url = fmt.Sprintf("http://%s:%s", host, port)
+		}
+	}
+
+	resp, err := client.Get(url) // Send an HTTP HEAD request to the server's URL.
 
 	if err != nil || resp.StatusCode != http.StatusOK {
 		// If an error occurs or the server responds with a non-OK status, mark the server as unhealthy.
