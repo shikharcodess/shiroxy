@@ -26,8 +26,8 @@ const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 // WebhookFirePayload represents the payload structure sent to a webhook.
 type WebhookFirePayload struct {
-	EventName string      `json:"event_name"` // Name of the event triggering the webhook.
-	Data      interface{} `json:"data"`       // Data payload associated with the event.
+	EventName string      `json:"eventname"` // Name of the event triggering the webhook.
+	Data      interface{} `json:"data"`      // Data payload associated with the event.
 }
 
 // WebhookHandler manages the configuration, logging, and execution of webhook events.
@@ -40,7 +40,6 @@ type WebhookHandler struct {
 
 // ApiResponse represents the structure of the response received from a webhook call.
 type ApiResponse struct {
-	Status  int    `json:"status"`  // Status code of the API response.
 	Message string `json:"message"` // Message contained in the API response.
 }
 
@@ -115,7 +114,7 @@ func (w *WebhookHandler) fireWebhook(payload *WebhookFirePayload) {
 	// Proceed only if the event is found in the configuration.
 	if eventFound {
 		// Marshal the payload data to JSON.
-		jsonData, err := json.Marshal(payload.Data)
+		jsonData, err := json.Marshal(payload)
 		if err != nil {
 			w.logHandler.LogError(err.Error(), "Webhook", "Error")
 			return
@@ -138,10 +137,10 @@ func (w *WebhookHandler) fireWebhook(payload *WebhookFirePayload) {
 
 		defer resp.Body.Close()
 
-		if resp.StatusCode != 200 {
-			w.logHandler.LogError(fmt.Sprintf("Webhook failed with status %s", resp.Status), "Webhook", "Error")
-			return
-		}
+		// if resp.StatusCode != 200 {
+		// 	w.logHandler.LogError(fmt.Sprintf("Webhook failed with status %s", resp.Status), "Webhook", "Error")
+		// 	return
+		// }
 
 		// Read the response body from the webhook request.
 		body, err := io.ReadAll(resp.Body)
@@ -159,11 +158,11 @@ func (w *WebhookHandler) fireWebhook(payload *WebhookFirePayload) {
 		}
 
 		// Log the outcome of the webhook call based on the status.
-		if apiResponse.Status == 200 {
+		if resp.StatusCode == 200 {
 			w.logHandler.Log("webhook called successfully", "Webhook", "")
 			return
 		} else {
-			w.logHandler.Log("webhook failed!", "Webhook", "")
+			w.logHandler.Log(fmt.Sprintf("webhook failed with status code %s", resp.Status), "Webhook", "")
 			return
 		}
 	}

@@ -44,6 +44,10 @@ type Storage struct {
 //   - *Storage: a pointer to the initialized Storage instance.
 //   - error: error if the storage could not be initialized.
 func InitializeStorage(storage *models.Storage, acmeServerUrl string, insecureSkipVerify string, wg *sync.WaitGroup) (*Storage, error) {
+	if acmeServerUrl == "" {
+		acmeServerUrl = "https://127.0.0.1:14000/dir"
+	}
+
 	storageSystem := Storage{
 		storage:              storage,
 		DnsChallengeToken:    make(map[string]string),

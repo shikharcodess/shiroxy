@@ -319,34 +319,35 @@ func (lb *LoadBalancer) serveHTTP(w http.ResponseWriter, r *ShiroxyRequest) {
 		var server *Server
 		clientIP := r.Request.RemoteAddr
 
-		ip := net.ParseIP(r.Request.Host)
-		if ip == nil {
-			domainName, _, err := net.SplitHostPort(r.Request.Host)
-			if err != nil {
-				http.Error(w, "Invalid host format", http.StatusBadRequest)
-				return
-			}
+		host, _, err := net.SplitHostPort(r.Request.Host)
+		if err != nil {
+			// Handle the case where no port is provided (e.g., IP address without a port)
+			host = r.Request.Host
+			// port = "" // or assign a default port if needed
+		}
 
-			domainData := lb.DomainStorage.DomainMetadata[domainName]
+		// First, check if the host is an IP address.
+		ip := net.ParseIP(host)
+		if ip != nil {
+			// If it's an IP, proceed with selecting a server based on the IP.
+			server = lb.selectServerBasedOnRule(clientIP, "")
+		} else {
+			// If it's not an IP, assume it's a domain name.
+			domainData := lb.DomainStorage.DomainMetadata[host]
 			if domainData == nil {
 				http.Error(w, "Domain not found", http.StatusNotFound)
 				return
 			}
 
-			// Extract tags and apply tag rule.
+			// Extract tags and apply tag rules.
 			tags := domainData.Metadata["tags"]
-			if tags == "" {
-				if lb.configuration.Backend.Tagrule == "strict" {
-					http.Error(w, "No tag found and strict tag rule is enabled", http.StatusServiceUnavailable)
-					return
-				} else {
-					server = lb.selectServerBasedOnRule(clientIP, "")
-				}
-			} else {
-				server = lb.selectServerBasedOnRule(clientIP, tags)
+			if tags == "" && lb.configuration.Backend.Tagrule == "strict" {
+				http.Error(w, "No tag found and strict tag rule is enabled", http.StatusServiceUnavailable)
+				return
 			}
-		} else {
-			server = lb.selectServerBasedOnRule(clientIP, "")
+
+			// Select the server based on the tags (or an empty tag if no tags are present).
+			server = lb.selectServerBasedOnRule(clientIP, tags)
 		}
 
 		// fmt.Println("SERVER FOUND==========: ", server)

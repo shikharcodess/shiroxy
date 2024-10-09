@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"shiroxy/cmd/shiroxy/api/middlewares"
 	"shiroxy/cmd/shiroxy/types"
 	"shiroxy/utils"
@@ -42,6 +43,7 @@ func (d *DomainController) RegisterDomain(c *gin.Context) {
 	if err != nil {
 		d.Context.WebhookHandler.Fire("domain-register-failed", map[string]string{
 			"domain": requestBody.Domain,
+			"error":  err.Error(),
 		})
 		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 			Success: false,
@@ -49,9 +51,11 @@ func (d *DomainController) RegisterDomain(c *gin.Context) {
 		}, 400)
 		return
 	} else {
+		fmt.Println("firing webhook")
 		d.Context.WebhookHandler.Fire("domain-register-success", map[string]string{
 			"domain": requestBody.Domain,
 		})
+		fmt.Println("webhook fired")
 		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 			Success: true,
 			Data: map[string]any{
@@ -180,18 +184,11 @@ func (d *DomainController) FetchDomainInfo(c *gin.Context) {
 		}, 400)
 		return
 	}
-	data, err := utils.DestructureStruct(&domainData)
-	if err != nil {
-		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
-			Success: false,
-			Error:   err.Error(),
-			Data:    nil,
-		}, 400)
-		return
-	}
 	d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 		Success: true,
 		Error:   "",
-		Data:    data,
+		Data: map[string]any{
+			"domain": domainData,
+		},
 	}, 200)
 }
