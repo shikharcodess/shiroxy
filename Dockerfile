@@ -1,5 +1,5 @@
 # Use an official Golang image as the base image
-FROM golang:1.20-alpine
+FROM golang:1.21-alpine
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the Go app
-RUN go build -o shiroxy ./cmd/shiroxy/main.go
+RUN go build -o /app/shiroxy cmd/shiroxy/main.go
 
 # Expose the application port if necessary (modify accordingly)
 EXPOSE 80

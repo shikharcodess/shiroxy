@@ -1,13 +1,12 @@
-version: "3.8"
-
 services:
   goapp:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "80:80"  # Change this if your app uses a different port
       - "443:443"
     volumes:
-      - .:/app
+      - ./defaults/shiroxy.conf.yaml:/app/defaults/shiroxy.conf.yaml  # Mount the config file
     command: /app/shiroxy -c /app/defaults/shiroxy.conf.yaml
+
