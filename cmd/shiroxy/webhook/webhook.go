@@ -137,7 +137,7 @@ func (w *WebhookHandler) fireWebhook(payload *WebhookFirePayload) {
 
 		defer resp.Body.Close()
 
-		if resp.StatusCode == 200 {
+		if resp.StatusCode != 200 {
 			w.logHandler.LogError(fmt.Sprintf("Webhook failed with status %s", resp.Status), "Webhook", "Error")
 			return
 		}
