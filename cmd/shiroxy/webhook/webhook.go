@@ -70,6 +70,7 @@ func StartWebhookHandler(config models.Webhook, logHandler *logger.Logger, wg *s
 
 	// Initialize the WebhookHandler.
 	webhookHandler := &WebhookHandler{
+		logHandler:    logHandler,
 		WebHookConfig: config,
 		secret:        selectedSecret,
 		fire:          make(chan *WebhookFirePayload, 1), // Channel for handling webhook events.
