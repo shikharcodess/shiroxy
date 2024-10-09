@@ -117,12 +117,14 @@ func (w *WebhookHandler) fireWebhook(payload *WebhookFirePayload) {
 		jsonData, err := json.Marshal(payload.Data)
 		if err != nil {
 			w.logHandler.LogError(err.Error(), "Webhook", "Error")
+			return
 		}
 
 		// Create a new HTTP POST request to the webhook URL.
 		req, err := http.NewRequest("POST", w.WebHookConfig.Url, bytes.NewBuffer(jsonData))
 		if err != nil {
 			w.logHandler.LogError(err.Error(), "Webhook", "Error")
+			return
 		}
 
 		req.Header.Set("Content-Type", "application/json")
@@ -130,14 +132,21 @@ func (w *WebhookHandler) fireWebhook(payload *WebhookFirePayload) {
 		resp, err := client.Do(req)
 		if err != nil {
 			w.logHandler.LogError(err.Error(), "Webhook", "Error")
+			return
 		}
 
 		defer resp.Body.Close()
+
+		if resp.StatusCode == 200 {
+			w.logHandler.LogError(fmt.Sprintf("Webhook failed with status %s", resp.Status), "Webhook", "Error")
+			return
+		}
 
 		// Read the response body from the webhook request.
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			w.logHandler.LogError(err.Error(), "Webhook", "Error")
+			return
 		}
 
 		// Unmarshal the response into ApiResponse struct.
@@ -145,13 +154,16 @@ func (w *WebhookHandler) fireWebhook(payload *WebhookFirePayload) {
 		err = json.Unmarshal(body, &apiResponse)
 		if err != nil {
 			w.logHandler.LogError(err.Error(), "Webhook", "Error")
+			return
 		}
 
 		// Log the outcome of the webhook call based on the status.
 		if apiResponse.Status == 200 {
 			w.logHandler.Log("webhook called successfully", "Webhook", "")
+			return
 		} else {
 			w.logHandler.Log("webhook failed!", "Webhook", "")
+			return
 		}
 	}
 }
