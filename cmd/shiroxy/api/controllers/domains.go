@@ -156,7 +156,14 @@ func (d *DomainController) FetchDomainInfo(c *gin.Context) {
 	domainName := c.Param("domain")
 
 	domainData := d.Context.DomainStorage.DomainMetadata[domainName]
-	data := utils.DestructureStruct(domainData)
+	if domainData == nil {
+		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
+			Success: false,
+			Error:   "domain not found",
+			Data:    nil,
+		}, 400)
+	}
+	data := utils.DestructureStruct(&domainData)
 	d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 		Success: true,
 		Error:   "",
