@@ -277,4 +277,4 @@ webhook:
     - "domain-update-success"
     - "domain-update-failed"
   # Webhook URL
-  url: "https://example.com/webhooks"
+  url: "http://127.0.0.1:3000/webhook"
