@@ -91,9 +91,11 @@ func StartWebhookHandler(config models.Webhook, logHandler *logger.Logger, wg *s
 //   - eventName: string, the name of the event to fire.
 //   - data: interface{}, the data associated with the event.
 func (w *WebhookHandler) Fire(eventName string, data interface{}) {
-	w.fire <- &WebhookFirePayload{
-		EventName: eventName,
-		Data:      data,
+	if w.WebHookConfig.Enable {
+		w.fire <- &WebhookFirePayload{
+			EventName: eventName,
+			Data:      data,
+		}
 	}
 }
 
