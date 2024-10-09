@@ -121,7 +121,15 @@ func (d *DomainController) UpdateDomain(c *gin.Context) {
 		}
 	}
 
-	data := utils.DestructureStruct(domainData)
+	data, err := utils.DestructureStruct(domainData)
+	if err != nil {
+		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
+			Success: false,
+			Error:   err.Error(),
+			Data:    nil,
+		}, 400)
+		return
+	}
 
 	d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 		Success: true,
@@ -143,7 +151,15 @@ func (d *DomainController) RemoveDomain(c *gin.Context) {
 		return
 	}
 
-	data := utils.DestructureStruct(domainData)
+	data, err := utils.DestructureStruct(domainData)
+	if err != nil {
+		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
+			Success: false,
+			Error:   err.Error(),
+			Data:    nil,
+		}, 400)
+		return
+	}
 
 	d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 		Success: true,
@@ -162,8 +178,17 @@ func (d *DomainController) FetchDomainInfo(c *gin.Context) {
 			Error:   "domain not found",
 			Data:    nil,
 		}, 400)
+		return
 	}
-	data := utils.DestructureStruct(&domainData)
+	data, err := utils.DestructureStruct(&domainData)
+	if err != nil {
+		d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
+			Success: false,
+			Error:   err.Error(),
+			Data:    nil,
+		}, 400)
+		return
+	}
 	d.Middlewares.WriteResponse(c, middlewares.ApiResponse{
 		Success: true,
 		Error:   "",

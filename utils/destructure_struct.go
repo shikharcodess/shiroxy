@@ -1,7 +1,10 @@
 // Package utils provides utility functions for general-purpose use.
 package utils
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+)
 
 // DestructureStruct takes a struct as input and converts its fields into a map.
 // Parameters:
@@ -14,21 +17,31 @@ import "reflect"
 //
 //	This function uses reflection to iterate over the fields of a struct, making it possible to convert any struct
 //	(or a pointer to a struct) into a map. If a pointer is passed, it dereferences the pointer before processing.
-func DestructureStruct(target interface{}) map[string]any {
-	destructured := map[string]any{} // Initialize an empty map to store the struct's fields.
+func DestructureStruct(target interface{}) (map[string]any, error) {
+	destructured := make(map[string]any)
 
-	// Use reflection to get the value of the input struct.
-	analyticsReflectValue := reflect.ValueOf(target)
-	if analyticsReflectValue.Kind() == reflect.Ptr {
-		// If the input is a pointer, get the element it points to.
-		analyticsReflectValue = analyticsReflectValue.Elem()
+	// Get the reflection value of the target.
+	value := reflect.ValueOf(target)
+
+	// If the input is a pointer, dereference it.
+	if value.Kind() == reflect.Ptr {
+		if value.IsNil() {
+			return nil, fmt.Errorf("input is a nil pointer")
+		}
+		value = value.Elem()
+	}
+
+	// Ensure the input is a struct after potential dereferencing.
+	if value.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("input is not a struct or pointer to struct")
 	}
 
 	// Iterate over the fields of the struct.
-	for i := 0; i < analyticsReflectValue.NumField(); i++ {
-		// Add each field's name and value to the map.
-		destructured[analyticsReflectValue.Type().Field(i).Name] = analyticsReflectValue.Field(i).Interface()
+	for i := 0; i < value.NumField(); i++ {
+		field := value.Type().Field(i)
+		fieldValue := value.Field(i).Interface()
+		destructured[field.Name] = fieldValue
 	}
 
-	return destructured
+	return destructured, nil
 }
