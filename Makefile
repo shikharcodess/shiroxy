@@ -21,7 +21,7 @@ build:
 	@echo "Building in $(MODE) mode"
 	@mkdir -p build
 	# Ensure this line is tab-indented
-	go build -ldflags "-X main.ACME_SERVER_URL=$(ACME_SERVER_URL) -X main.INSECURE_SKIP_VERIFY=$(INSECURE_SKIP_VERIFY)" -o build/shiroxy cmd/shiroxy/main.go
+	go build -ldflags "-X main.ACME_SERVER_URL=$(ACME_SERVER_URL) -X main.INSECURE_SKIP_VERIFY=$(INSECURE_SKIP_VERIFY) -X main.MODE=$(MODE)" -o build/shiroxy cmd/shiroxy/main.go
 
 test:
 	go test ./...
