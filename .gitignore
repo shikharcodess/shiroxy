@@ -2,6 +2,9 @@
 build/
 implementations/
 persistence.shiroxy
+dev-persistence.shiroxy
+stage-persistence.shiroxy
+prod-persistence.shiroxy
 defaults/shiroxy.conf.json
 defaults/shiroxy.conf.toml
 live/
