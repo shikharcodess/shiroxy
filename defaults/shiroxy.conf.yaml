@@ -208,39 +208,39 @@ backend:
 
   # This section sets how many servers that backend will have.
   servers:
-    - id: "crud-api-1"
-      # Host address of the service
-      host: "3.110.172.117"
-      # Port on which that service is running
-      port: "8001"
-      # This sets the health URL of that service. If not set, the base URL
-      # will be used as the health URL (i.e., `host:port`).
-      healthurl: "http://3.110.172.117:8001"
-      tags: "api"
+    # - id: "crud-api-1"
+    #   # Host address of the service
+    #   host: "3.110.172.117"
+    #   # Port on which that service is running
+    #   port: "8001"
+    #   # This sets the health URL of that service. If not set, the base URL
+    #   # will be used as the health URL (i.e., `host:port`).
+    #   healthurl: "http://3.110.172.117:8001"
+    #   tags: "api"
 
-    - id: "crub-api-2"
-      host: "3.110.172.117"
-      port: "8002"
-      healthurl: "http://3.110.172.117:8002"
-      tags: "api"
+    # - id: "crub-api-2"
+    #   host: "3.110.172.117"
+    #   port: "8002"
+    #   healthurl: "http://3.110.172.117:8002"
+    #   tags: "api"
     
-    - id: "crub-api-3"
-      host: "3.110.172.117"
-      port: "8003"
-      healthurl: "http://3.110.172.117:8003"
+    # - id: "crub-api-3"
+    #   host: "3.110.172.117"
+    #   port: "8003"
+    #   healthurl: "http://3.110.172.117:8003"
+    #   tags: "api"
+
+    - id: "<backend-name-server-1>"
+      host: ""
+      port: "8001"
+      healthurl: "http://127.0.0.1:8001"
       tags: "api"
 
-    # - id: "<backend-name-server-2>"
-    #   host: ""
-    #   port: "8002"
-    #   healthurl: ""
-    #   tags: "worker1,workers"
-
-    # - id: "<backend-name-server-2>"
-    #   host: ""
-    #   port: "8002"
-    #   healthurl: ""
-    #   tags: "worker2,workers"
+    - id: "<backend-name-server-2>"
+      host: ""
+      port: "8002"
+      healthurl: "http://127.0.0.1:8002"
+      tags: "api"
       
 
 
@@ -276,5 +276,7 @@ webhook:
     - "domain-remove-failed"
     - "domain-update-success"
     - "domain-update-failed"
+    - "backendserver.register.success"
+    - "backendserver.register.failed"
   # Webhook URL
   url: "http://127.0.0.1:3000/webhook"
