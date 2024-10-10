@@ -115,7 +115,10 @@ func (s *Storage) RegisterDomain(domainName, user_email string, metadata map[str
 	}
 
 	// Generate the certificate for the domain.
-	s.generateCertificate(domainMetadata)
+	err = s.generateCertificate(domainMetadata)
+	if err != nil {
+		return "", err
+	}
 
 	return domainMetadata.DnsChallengeKey, nil
 }
@@ -438,6 +441,8 @@ func (s *Storage) generateCertificate(domainMetadata *DomainMetadata) error {
 	domainMetadata.Metadata["cert_url"] = certChains[0].URL
 	domainMetadata.Metadata["cert_ca"] = certChains[0].CA
 	domainMetadata.Status = "active"
+
+	fmt.Printf("Certificate Generated Successfully For Domain : %s", domainMetadata.Domain)
 
 	return nil
 }

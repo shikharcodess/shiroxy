@@ -22,6 +22,8 @@ import (
 	"sync"                        // Provides synchronization primitives.
 )
 
+var DnsChallengeSolverMapped bool = false
+
 // StartShiroxyHandler sets up and starts the Shiroxy reverse proxy with a load balancer.
 // Parameters:
 //   - configuration: *models.Config, contains the configuration settings.
@@ -103,6 +105,41 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 						}
 					}
 				}()
+
+				// Implementation for exposing dns HTTP-01 challenge solver endpoint on port 80
+				if (r.URL.Port() == "80" || r.URL.Port() == "") && strings.HasPrefix(r.RequestURI, "/.well-known/acme-challenge/") {
+					// Todo: Implement new custom router
+					filename := strings.TrimPrefix(r.RequestURI, "/.well-known/acme-challenge/")
+					if filename == "" {
+						http.Error(w, "Filename not found", http.StatusBadRequest)
+						return
+					}
+					domainName, ok := storage.DnsChallengeToken[filename]
+					if !ok {
+						http.Error(w, "no domain found for filename", http.StatusBadRequest)
+						return
+					}
+
+					domainMetadata, ok := storage.DomainMetadata[domainName]
+					if !ok {
+						http.Error(w, "record not found for domain", http.StatusBadRequest)
+						return
+					}
+
+					if domainMetadata.DnsChallengeKey == "" {
+						if !ok {
+							http.Error(w, "dns challenge authorization and solving key not found", http.StatusBadRequest)
+							return
+						}
+					}
+
+					fmt.Fprint(w, domainMetadata.DnsChallengeKey)
+					fmt.Println("DNS challenge endpoint accessed=========================")
+					w.WriteHeader(200)
+					w.Write([]byte{})
+					return
+				}
+
 				// HTTP to HTTPS redirection if enabled in the configuration.
 				if (configuration.Frontend.HttpToHttps) && r.URL.Port() == "80" && r.TLS == nil {
 					secureFrontend := loadbalancer.Frontends["443"]
@@ -110,7 +147,22 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 						url := fmt.Sprintf("https://%s%s", r.Host, r.RequestURI)
 						http.Redirect(w, r, url, http.StatusMovedPermanently)
 					} else {
-						loadbalancer.ServeHTTP(w, r)
+						domainName := strings.TrimSpace(r.Host)
+						domainMetadata := storage.DomainMetadata[domainName]
+						if domainMetadata.Status == "inactive" {
+							if strings.Contains(r.RequestURI, ".well-known/acme-challenge") {
+								loadbalancer.ServeHTTP(w, r)
+							} else {
+								w.Header().Add("Content-Type", "text/html")
+								w.WriteHeader(400) // Write a 400 Bad Request status.
+								_, err := w.Write([]byte(domainNotFoundErrorResponse))
+								if err != nil {
+									log.Printf("failed to write response: %v", err)
+								}
+							}
+						} else {
+							loadbalancer.ServeHTTP(w, r)
+						}
 					}
 				} else {
 					loadbalancer.ServeHTTP(w, r) // Serve HTTP request through the load balancer.

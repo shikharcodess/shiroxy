@@ -53,3 +53,7 @@ func (d *DNSChallengeSolver) SolveDNSChallenge(c *gin.Context) {
 	fmt.Fprint(c.Writer, challengeKeyAuthorization)
 	c.AbortWithStatus(200)
 }
+
+func (d *DNSChallengeSolver) SolveDNSChallengeHttpVersion(w http.ResponseWriter, r http.Request) {
+
+}

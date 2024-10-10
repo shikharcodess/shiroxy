@@ -86,14 +86,14 @@ func StartShiroxyAPI(config *models.Config, loadBalancer *proxy.LoadBalancer, do
 
 	// DNS Solver Listener
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		dnsRouter := gin.Default()
-		routes.SSLRoutes(dnsRouter, domainStorage)
-		err := dnsRouter.Run(":5002")
-		if err != nil {
-			loghandler.LogError(fmt.Sprintf("error starting admin API, %s", err.Error()), "ADMIN API", "ERROR")
-		}
-	}()
+	// wg.Add(1)
+	// go func() {
+	// 	defer wg.Done()
+	// 	dnsRouter := gin.Default()
+	// 	routes.SSLRoutes(dnsRouter, domainStorage)
+	// 	err := dnsRouter.Run(":5002")
+	// 	if err != nil {
+	// 		loghandler.LogError(fmt.Sprintf("error starting admin API, %s", err.Error()), "ADMIN API", "ERROR")
+	// 	}
+	// }()
 }

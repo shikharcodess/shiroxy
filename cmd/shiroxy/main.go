@@ -6,6 +6,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"runtime/debug"
 	"shiroxy/cmd/shiroxy/analytics"
 	"shiroxy/cmd/shiroxy/api"
@@ -22,10 +23,16 @@ import (
 var ACME_SERVER_URL string      // URL of the ACME server for certificate generation.
 var INSECURE_SKIP_VERIFY string // Flag to skip SSL verification (for testing purposes).
 var VERSION string              // Shiroxy application version.
+var MODE string
 
 // main is the entry point of the Shiroxy application. It sets up logging, reads configuration,
 // initializes storage, starts analytics, handles graceful shutdown, and starts the API and proxy services.
 func main() {
+	if MODE == "" {
+		MODE = "dev"
+	}
+
+	os.Setenv("SHIROXY_ENVIRONMENT", MODE)
 	wg := sync.WaitGroup{} // WaitGroup to manage concurrency and wait for goroutines to finish.
 
 	// Starting Logger

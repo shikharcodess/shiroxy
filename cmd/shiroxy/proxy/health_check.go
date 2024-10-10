@@ -134,7 +134,7 @@ func (hc *HealthChecker) CheckHealth(server *Server) bool {
 		localServer := *server
 		server.Lock.Unlock()
 
-		if !localServer.FireWebhookOnFirstHealthCheck {
+		if localServer.FireWebhookOnFirstHealthCheck {
 			// Fire a webhook for server registration failure if it's the first health check.
 			data := map[string]string{
 				"host": localServer.URL.Host,

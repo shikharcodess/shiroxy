@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"math/big"
 	"net/http"
 	"shiroxy/pkg/logger"
@@ -91,7 +90,9 @@ func StartWebhookHandler(config models.Webhook, logHandler *logger.Logger, wg *s
 //   - eventName: string, the name of the event to fire.
 //   - data: interface{}, the data associated with the event.
 func (w *WebhookHandler) Fire(eventName string, data interface{}) {
+
 	if w.WebHookConfig.Enable {
+		fmt.Println("Fire================")
 		w.fire <- &WebhookFirePayload{
 			EventName: eventName,
 			Data:      data,
@@ -139,32 +140,13 @@ func (w *WebhookHandler) fireWebhook(payload *WebhookFirePayload) {
 
 		defer resp.Body.Close()
 
-		// if resp.StatusCode != 200 {
-		// 	w.logHandler.LogError(fmt.Sprintf("Webhook failed with status %s", resp.Status), "Webhook", "Error")
-		// 	return
-		// }
+		fmt.Println("RESP: ", resp)
 
-		// Read the response body from the webhook request.
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			w.logHandler.LogError(err.Error(), "Webhook", "Error")
-			return
-		}
-
-		// Unmarshal the response into ApiResponse struct.
-		var apiResponse ApiResponse
-		err = json.Unmarshal(body, &apiResponse)
-		if err != nil {
-			w.logHandler.LogError(err.Error(), "Webhook", "Error")
-			return
-		}
-
-		// Log the outcome of the webhook call based on the status.
 		if resp.StatusCode == 200 {
-			w.logHandler.Log("webhook called successfully", "Webhook", "")
+			w.logHandler.LogSuccess(fmt.Sprintf("webhook successfully fired with status %s", resp.Status), "Webhook", "Success")
 			return
 		} else {
-			w.logHandler.Log(fmt.Sprintf("webhook failed with status code %s", resp.Status), "Webhook", "")
+			w.logHandler.LogError(fmt.Sprintf("webhook failed with status code %s", resp.Status), "Webhook", "")
 			return
 		}
 	}
