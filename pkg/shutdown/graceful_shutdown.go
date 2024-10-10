@@ -33,6 +33,11 @@ import (
 //   - analyticsConfiguration: *analytics.AnalyticsConfiguration, analytics configuration instance for managing analytics data.
 //   - wg: *sync.WaitGroup, synchronization primitive to wait for all cleanup goroutines.
 func HandleGracefulShutdown(fromdefer bool, panicData interface{}, configuration *models.Config, storage *domains.Storage, logHandler *logger.Logger, analyticsConfiguration *analytics.AnalyticsConfiguration, wg *sync.WaitGroup) {
+	shiroxyEnvionment := os.Getenv("SHIROXY_ENVIRONMENT")
+	if shiroxyEnvionment == "" {
+		shiroxyEnvionment = "dev"
+	}
+
 	// Channel to listen for OS signals (e.g., SIGINT, SIGTERM).
 	var sigs chan os.Signal
 	if !fromdefer {
@@ -108,7 +113,7 @@ func HandleGracefulShutdown(fromdefer bool, panicData interface{}, configuration
 			base64EncodedData := base64.StdEncoding.EncodeToString(shutdownMarshaledMetadata)
 
 			// Write the encoded data to a file for persistence.
-			err = cleanup(fmt.Sprintf("%s/persistence.shiroxy", configuration.Default.DataPersistancePath), base64EncodedData)
+			err = cleanup(fmt.Sprintf("%s/%s-persistence.shiroxy", configuration.Default.DataPersistancePath, shiroxyEnvionment), base64EncodedData)
 			if err != nil {
 				logHandler.Log(err.Error(), "Shutdown", "Error")
 			}
