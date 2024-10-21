@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"shiroxy/pkg/models"
 	"sync"
 
@@ -322,14 +323,19 @@ func (s *Storage) generateCertificate(domainMetadata *DomainMetadata) error {
 		return err
 	}
 
+	tlcClientConfig := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+	if os.Getenv("SHIROXY_ENVIRONMENT") == "stage" || os.Getenv("SHIROXY_ENVIRONMENT") == "prod" {
+		tlcClientConfig.InsecureSkipVerify = false
+	}
+
 	// Create a low-level ACME client.
 	client := &acme.Client{
 		Directory: s.ACME_SERVER_URL,
 		HTTPClient: &http.Client{
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: s.INSECURE_SKIP_VERIFY, // Remove this in production.
-				},
+				TLSClientConfig: tlcClientConfig,
 			},
 		},
 		Logger: logger,
