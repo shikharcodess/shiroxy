@@ -142,9 +142,9 @@ func (lb *LoadBalancer) ExtractTags() {
 	}
 }
 
-// getNextServerRoundRobin selects the next server in a round-robin manner for the specified tag.
+// GetNextServerRoundRobin selects the next server in a round-robin manner for the specified tag.
 // Returns the selected server.
-func (lb *LoadBalancer) getNextServerRoundRobin(tag string, servers []*Server) *Server {
+func (lb *LoadBalancer) GetNextServerRoundRobin(tag string, servers []*Server) *Server {
 	var backendServers *BackendServers
 	var routingDetails *TagRoutingDetails
 
@@ -184,73 +184,9 @@ func (lb *LoadBalancer) getNextServerRoundRobin(tag string, servers []*Server) *
 	return nil // Return nil if no alive server is found
 }
 
-// // getNextServerRoundRobin selects the next server in a round-robin manner for the specified tag.
-// // Returns the selected server.
-// func (lb *LoadBalancer) getNextServerRoundRobin(tag string, servers []*Server) *Server {
-// 	fmt.Println("getNextServerRoundRobin: ", tag)
-
-// 	var backendServers *BackendServers
-// 	var routingDetails *TagRoutingDetails
-
-// 	lb.Mutex.RLock()
-// 	if tag != "" {
-// 		backendServers = lb.ServerByTag.Servers[tag]
-// 		routingDetails = lb.RoutingDetailsByTag[tag]
-// 		if backendServers == nil || routingDetails == nil {
-// 			return nil // No servers for the tag.
-// 		}
-// 	} else {
-// 		backendServers = lb.Servers
-// 		routingDetails = lb.RoutingDetailsByTag[""]
-// 	}
-// 	lb.Mutex.RUnlock()
-
-// 	var server *Server
-// 	serverlistLength := len(backendServers.Servers)
-// 	fmt.Println("serverlistLength: ", serverlistLength)
-
-// 	index := (routingDetails.Current + 0) % serverlistLength
-
-// 	fmt.Println("index: ", index)
-
-// 	server = backendServers.Servers[index]
-// 	fmt.Println("server: ", server)
-// 	server.Lock.RLock()
-// 	if server.Alive {
-// 		server.Lock.RUnlock()
-// 		routingDetails.Current = (index + 1) % serverlistLength
-// 		return server
-// 	}
-// 	server.Lock.RUnlock()
-
-// 	fmt.Println("Read Lock unlocked: ", server)
-
-// 	for i := 0; i < serverlistLength; i++ {
-// 		index = (index + 1) % serverlistLength
-// 		server = backendServers.Servers[index]
-
-// 		fmt.Println("===============================")
-// 		fmt.Println("Index: ", index, " | server: ", server)
-// 		fmt.Println("===============================")
-
-// 		server.Lock.RLock()
-// 		if server.Alive {
-// 			routingDetails.Current = (index + 1) % serverlistLength
-// 			return server
-// 		}
-// 		server.Lock.RUnlock()
-// 	}
-
-// 	fmt.Println("===============================")
-// 	fmt.Println("server: ", server)
-// 	fmt.Println("===============================")
-
-// 	return server
-// }
-
-// getLeastConnectionServer selects the server with the least number of active connections for the specified tag.
+// GetLeastConnectionServer selects the server with the least number of active connections for the specified tag.
 // Returns the selected server.
-func (lb *LoadBalancer) getLeastConnectionServer(tag string, servers []*Server) *Server {
+func (lb *LoadBalancer) GetLeastConnectionServer(tag string, servers []*Server) *Server {
 	lb.Mutex.Lock()
 	defer lb.Mutex.Unlock()
 
@@ -280,15 +216,14 @@ func (lb *LoadBalancer) getLeastConnectionServer(tag string, servers []*Server) 
 	return leastConnServer
 }
 
-// getStickySessionServer returns the server associated with the client IP for sticky sessions.
+// GetStickySessionServer returns the server associated with the client IP for sticky sessions.
 // If no association exists, selects a server using round-robin and creates a new sticky session.
-func (lb *LoadBalancer) getStickySessionServer(clientIP string, tag string, servers []*Server) *Server {
-	lb.Mutex.Lock()
-	defer lb.Mutex.Unlock()
+func (lb *LoadBalancer) GetStickySessionServer(clientIP string, tag string, servers []*Server) *Server {
 
 	var backendServers *BackendServers
 	var routingDetails *TagRoutingDetails
 
+	lb.Mutex.RLock()
 	if tag != "" {
 		backendServers = lb.ServerByTag.Servers[tag]
 		routingDetails = lb.RoutingDetailsByTag[tag]
@@ -299,15 +234,22 @@ func (lb *LoadBalancer) getStickySessionServer(clientIP string, tag string, serv
 		backendServers = lb.Servers
 		routingDetails = lb.RoutingDetailsByTag[""]
 	}
+	lb.Mutex.RUnlock()
 
 	if server, exists := routingDetails.StickySessions[clientIP]; exists {
 		return server // Return existing session association.
 	}
 
 	// Select a server using round-robin and associate it with the client IP.
-	server := lb.getNextServerRoundRobin(tag, servers)
-	routingDetails.StickySessions[clientIP] = server
-	return server
+	if len(servers) > 0 {
+		server := lb.GetNextServerRoundRobin(tag, servers)
+		routingDetails.StickySessions[clientIP] = server
+		return server
+	} else {
+		server := lb.GetNextServerRoundRobin(tag, backendServers.Servers)
+		routingDetails.StickySessions[clientIP] = server
+		return server
+	}
 }
 
 // serveHTTP processes HTTP requests, performing tag-based routing and handling fallbacks.
@@ -374,7 +316,7 @@ func (lb *LoadBalancer) serveHTTP(w http.ResponseWriter, r *ShiroxyRequest) {
 						server.Lock.Unlock()
 
 						// Load error page on server failure.
-						shiroxyNotReadyResponse := loadErrorPageHtmlContent(public.DOMAIN_NOT_FOUND_ERROR, &models.ErrorRespons{
+						shiroxyNotReadyResponse := LoadErrorPageHtmlContent(public.DOMAIN_NOT_FOUND_ERROR, &models.ErrorRespons{
 							ErrorPageButtonName: "Shiroxy",
 							ErrorPageButtonUrl:  "",
 						})
@@ -389,7 +331,7 @@ func (lb *LoadBalancer) serveHTTP(w http.ResponseWriter, r *ShiroxyRequest) {
 				return
 			} else {
 				// Load error page if the load balancer is not ready.
-				shiroxyNotReadyResponse := loadErrorPageHtmlContent(public.SHIROXY_NOT_READY, &models.ErrorRespons{
+				shiroxyNotReadyResponse := LoadErrorPageHtmlContent(public.SHIROXY_NOT_READY, &models.ErrorRespons{
 					ErrorPageButtonName: "Shiroxy",
 					ErrorPageButtonUrl:  "",
 				})
@@ -405,7 +347,7 @@ func (lb *LoadBalancer) serveHTTP(w http.ResponseWriter, r *ShiroxyRequest) {
 		}
 	} else {
 		// Load error page if the load balancer is not ready.
-		shiroxyNotReadyResponse := loadErrorPageHtmlContent(public.SHIROXY_NOT_READY, &models.ErrorRespons{
+		shiroxyNotReadyResponse := LoadErrorPageHtmlContent(public.SHIROXY_NOT_READY, &models.ErrorRespons{
 			ErrorPageButtonName: "Shiroxy",
 			ErrorPageButtonUrl:  "",
 		})
@@ -493,13 +435,13 @@ func (lb *LoadBalancer) selectServerBasedOnRule(clientIP, tag string) *Server {
 func (lb *LoadBalancer) selectServerFromList(clientIP string, servers *BackendServers, tag string) *Server {
 	switch lb.configuration.Backend.Balance {
 	case "round-robin":
-		return lb.getNextServerRoundRobin(tag, servers.Servers)
+		return lb.GetNextServerRoundRobin(tag, servers.Servers)
 	case "least-count":
-		return lb.getLeastConnectionServer(tag, servers.Servers)
+		return lb.GetLeastConnectionServer(tag, servers.Servers)
 	case "sticky-session":
-		return lb.getStickySessionServer(clientIP, tag, servers.Servers)
+		return lb.GetStickySessionServer(clientIP, tag, servers.Servers)
 	default:
-		return lb.getNextServerRoundRobin(tag, servers.Servers)
+		return lb.GetNextServerRoundRobin(tag, servers.Servers)
 	}
 }
 

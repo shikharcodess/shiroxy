@@ -76,7 +76,7 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 	loadbalancer := NewLoadBalancer(configuration, backendServers, webhookHandler, storage, wg)
 
 	// Load error page content to be used for "domain not found" errors.
-	domainNotFoundErrorResponse := loadErrorPageHtmlContent(public.DOMAIN_NOT_FOUND_ERROR, &configuration.Default.ErrorResponses)
+	domainNotFoundErrorResponse := LoadErrorPageHtmlContent(public.DOMAIN_NOT_FOUND_ERROR, &configuration.Default.ErrorResponses)
 
 	// Loop through each bind (frontend port binding) specified in the configuration.
 	for _, bind := range configuration.Frontend.Bind {
@@ -114,6 +114,7 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 						http.Error(w, "Filename not found", http.StatusBadRequest)
 						return
 					}
+					fmt.Println("====================== filename: ", filename)
 					domainName, ok := storage.DnsChallengeToken[filename]
 					if !ok {
 						http.Error(w, "no domain found for filename", http.StatusBadRequest)
@@ -184,9 +185,9 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 
 		// Create HTTP server based on the target mode.
 		if bind.Target == "multiple" {
-			server, secure, err = createMultipleTargetServer(&bind, storage, frontend.handlerFunc)
+			server, secure, err = CreateMultipleTargetServer(&bind, storage, frontend.handlerFunc)
 		} else if bind.Target == "single" {
-			server, secure, err = createSingleTargetServer(&bind, storage, frontend.handlerFunc)
+			server, secure, err = CreateSingleTargetServer(&bind, storage, frontend.handlerFunc)
 		}
 
 		if err != nil {
@@ -194,7 +195,7 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 		}
 
 		// Start the server using listenAndServe function.
-		listenAndServe(server, secure, logHandler, wg)
+		ListenAndServe(server, secure, logHandler, wg)
 	}
 	return loadbalancer, nil
 }
@@ -209,14 +210,14 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 //   - *http.Server: an HTTP server instance.
 //   - bool: indicates if the server is secure (using TLS).
 //   - error: error if any issues occur during server creation.
-func createMultipleTargetServer(bindData *models.FrontendBind, storage *domains.Storage, handlerFunc http.HandlerFunc) (server *http.Server, secure bool, err error) {
+func CreateMultipleTargetServer(bindData *models.FrontendBind, storage *domains.Storage, handlerFunc http.HandlerFunc) (server *http.Server, secure bool, err error) {
 	if bindData.Secure {
 		// Secure server with TLS configuration.
 		server := &http.Server{
 			Addr:    fmt.Sprintf("%s:%s", bindData.Host, bindData.Port),
 			Handler: http.HandlerFunc(handlerFunc),
 			TLSConfig: &tls.Config{
-				ClientAuth: resolveSecurityPolicy(bindData.SecureSetting.SecureVerify),
+				ClientAuth: ResolveSecurityPolicy(bindData.SecureSetting.SecureVerify),
 				GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 					// Load TLS certificate based on the domain metadata.
 					var cert tls.Certificate
@@ -254,15 +255,15 @@ func createMultipleTargetServer(bindData *models.FrontendBind, storage *domains.
 	}
 }
 
-// createSingleTargetServer sets up an HTTP server for the "single" target mode with optional TLS support.
+// CreateSingleTargetServer sets up an HTTP server for the "single" target mode with optional TLS support.
 // Parameters are similar to createMultipleTargetServer.
 // Returns similar values to createMultipleTargetServer.
-func createSingleTargetServer(bindData *models.FrontendBind, storage *domains.Storage, handlerFunc http.HandlerFunc) (server *http.Server, secure bool, err error) {
+func CreateSingleTargetServer(bindData *models.FrontendBind, storage *domains.Storage, handlerFunc http.HandlerFunc) (server *http.Server, secure bool, err error) {
 	if bindData.Secure {
 		var tlsConfig *tls.Config
 		if bindData.SecureSetting.SingleTargetMode == "certandkey" {
 			tlsConfig = &tls.Config{
-				ClientAuth: resolveSecurityPolicy(bindData.SecureSetting.SecureVerify),
+				ClientAuth: ResolveSecurityPolicy(bindData.SecureSetting.SecureVerify),
 				ServerName: bindData.SecureSetting.CertAndKey.Domain,
 				GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 					cert, err := tls.LoadX509KeyPair(bindData.SecureSetting.CertAndKey.Cert, bindData.SecureSetting.CertAndKey.Key)
@@ -274,7 +275,7 @@ func createSingleTargetServer(bindData *models.FrontendBind, storage *domains.St
 			}
 		} else if bindData.SecureSetting.SingleTargetMode == "shiroxyshinglesecure" {
 			tlsConfig = &tls.Config{
-				ClientAuth: resolveSecurityPolicy(bindData.SecureSetting.SecureVerify),
+				ClientAuth: ResolveSecurityPolicy(bindData.SecureSetting.SecureVerify),
 				ServerName: bindData.SecureSetting.CertAndKey.Domain,
 				GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 					domainMetadata, ok := storage.DomainMetadata[info.ServerName]
@@ -312,9 +313,9 @@ func createSingleTargetServer(bindData *models.FrontendBind, storage *domains.St
 	}
 }
 
-// resolveSecurityPolicy maps the given policy string to a tls.ClientAuthType value.
+// ResolveSecurityPolicy maps the given policy string to a tls.ClientAuthType value.
 // Returns the appropriate tls.ClientAuthType based on the policy.
-func resolveSecurityPolicy(policy string) tls.ClientAuthType {
+func ResolveSecurityPolicy(policy string) tls.ClientAuthType {
 	if policy == "none" {
 		return tls.NoClientCert
 	} else if policy == "optional" {
@@ -326,9 +327,9 @@ func resolveSecurityPolicy(policy string) tls.ClientAuthType {
 	}
 }
 
-// loadErrorPageHtmlContent prepares the error page HTML content by replacing placeholders
+// LoadErrorPageHtmlContent prepares the error page HTML content by replacing placeholders
 // in the provided HTML content with values from the configuration.
-func loadErrorPageHtmlContent(htmlContent string, config *models.ErrorRespons) string {
+func LoadErrorPageHtmlContent(htmlContent string, config *models.ErrorRespons) string {
 	if config.ErrorPageButtonName == "" {
 		config.ErrorPageButtonName = "Shiroxy"
 	}
@@ -345,9 +346,9 @@ func loadErrorPageHtmlContent(htmlContent string, config *models.ErrorRespons) s
 	return result
 }
 
-// listenAndServe starts the HTTP server in a goroutine and handles both secured and unsecured modes.
+// ListenAndServe starts the HTTP server in a goroutine and handles both secured and unsecured modes.
 // It also logs any server start errors.
-func listenAndServe(server *http.Server, secure bool, logHandler *logger.Logger, wg *sync.WaitGroup) {
+func ListenAndServe(server *http.Server, secure bool, logHandler *logger.Logger, wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()

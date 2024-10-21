@@ -51,24 +51,30 @@ type ErrorRespons struct {
 }
 
 type FrontendBind struct {
-	Port          string `json:"port"`
-	Host          string `json:"host"`
-	Target        string `json:"target"`
-	Secure        bool   `json:"secure"`
-	SecureSetting struct {
-		// required, optional, none
-		SecureVerify string `json:"secureverify"`
-		// certandkey and shiroxyshinglesecure
-		SingleTargetMode string `json:"singletargetmode"`
-		CertAndKey       struct {
-			Domain string `json:"domain"`
-			Cert   string `json:"cert"`
-			Key    string `json:"key"`
-		} `json:"certandkey"`
-		ShiroxySingleSecure struct {
-			Domain string `json:"domain"`
-		} `json:"shiroxysinglesecure"`
-	} `json:"securesetting"`
+	Port          string                  `json:"port"`
+	Host          string                  `json:"host"`
+	Target        string                  `json:"target"`
+	Secure        bool                    `json:"secure"`
+	SecureSetting FrontendSecuritySetting `json:"securesetting"`
+}
+
+type FrontendSecuritySetting struct {
+	// required, optional, none
+	SecureVerify string `json:"secureverify"`
+	// certandkey and shiroxyshinglesecure
+	SingleTargetMode    string                                     `json:"singletargetmode"`
+	CertAndKey          FrontendSecuritySettingCertAndKey          `json:"certandkey"`
+	ShiroxySingleSecure FrontendSecuritySettingShiroxySingleSecure `json:"shiroxysinglesecure"`
+}
+
+type FrontendSecuritySettingCertAndKey struct {
+	Domain string `json:"domain"`
+	Cert   string `json:"cert"`
+	Key    string `json:"key"`
+}
+
+type FrontendSecuritySettingShiroxySingleSecure struct {
+	Domain string `json:"domain"`
 }
 
 type Frontend struct {
@@ -87,14 +93,16 @@ type Backend struct {
 	HealthCheckTriggerDuration int    `json:"healthchecktriggerduration"`
 	Tagrule                    string `json:"tagrule"`
 	NoServerAction             string `json:"noserveraction"`
-	Servers                    []struct {
-		Id        string `json:"id"`
-		Host      string `json:"host"`
-		Port      string `json:"port"`
-		HealthUrl string `json:"healthurl"`
-		Tags      string `json:"tags"`
-	}
-	Tags []string `json:"tags"`
+	Servers                    []BackendServer
+	Tags                       []string `json:"tags"`
+}
+
+type BackendServer struct {
+	Id        string `json:"id"`
+	Host      string `json:"host"`
+	Port      string `json:"port"`
+	HealthUrl string `json:"healthurl"`
+	Tags      string `json:"tags"`
 }
 
 type Logging struct {

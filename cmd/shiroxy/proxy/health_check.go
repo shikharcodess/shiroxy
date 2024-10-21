@@ -18,7 +18,7 @@ import (
 type HealthChecker struct {
 	webhookHandler        *webhook.WebhookHandler // Handler to fire webhooks on server health changes.
 	Servers               *BackendServers         // List of backend servers to monitor.
-	healthCheckTrigger    time.Duration           // Interval for periodic health checks.
+	HealthCheckTrigger    time.Duration           // Interval for periodic health checks.
 	stop                  chan bool               // Channel to signal stopping the health checks.
 	changeTriggerInterval chan time.Duration      // Channel to update the health check interval.
 	wg                    *sync.WaitGroup         // WaitGroup for synchronizing goroutines.
@@ -38,7 +38,7 @@ func NewHealthChecker(server *BackendServers, webhookHandler *webhook.WebhookHan
 	return &HealthChecker{
 		webhookHandler:        webhookHandler,
 		Servers:               server,
-		healthCheckTrigger:    triggerInterval,
+		HealthCheckTrigger:    triggerInterval,
 		stop:                  make(chan bool),          // Channel to control stopping health checks.
 		changeTriggerInterval: make(chan time.Duration), // Channel for changing the health check interval.
 		wg:                    wg,
@@ -52,7 +52,7 @@ func (hc *HealthChecker) StartHealthCheck() {
 	hc.wg.Add(1) // Increment WaitGroup counter.
 	go func() {
 		defer hc.wg.Done()                              // Decrement WaitGroup counter when done.
-		ticker := time.NewTicker(hc.healthCheckTrigger) // Create a ticker with the initial health check interval.
+		ticker := time.NewTicker(hc.HealthCheckTrigger) // Create a ticker with the initial health check interval.
 
 		for {
 			select {
@@ -71,6 +71,7 @@ func (hc *HealthChecker) StartHealthCheck() {
 			case <-hc.stop:
 				// If stop signal is received, stop the ticker and exit the loop.
 				ticker.Stop()
+				fmt.Println("Health Checker Stoped")
 				return
 			}
 		}
@@ -85,6 +86,7 @@ func (hc *HealthChecker) StartHealthCheck() {
 // Returns:
 //   - bool: true if the server is healthy, false otherwise.
 func (hc *HealthChecker) CheckHealth(server *Server) bool {
+	hc.wg.Add(1)
 	defer hc.wg.Done()       // Decrement WaitGroup counter when done.
 	client := &http.Client{} // Create a new HTTP client for making the health check request.
 
