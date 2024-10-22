@@ -59,7 +59,6 @@ func (hc *HealthChecker) StartHealthCheck() {
 			case <-ticker.C:
 				// On every tick, perform health checks on all servers.
 				for _, server := range hc.Servers.Servers {
-					hc.wg.Add(1)              // Increment WaitGroup counter for each server health check.
 					go hc.CheckHealth(server) // Check server health in a separate goroutine.
 				}
 
