@@ -147,7 +147,6 @@ func (lb *LoadBalancer) ExtractTags() {
 func (lb *LoadBalancer) GetNextServerRoundRobin(tag string, servers []*Server) *Server {
 	var backendServers *BackendServers
 	var routingDetails *TagRoutingDetails
-
 	lb.Mutex.RLock()
 	if tag != "" {
 		backendServers = lb.ServerByTag.Servers[tag]
@@ -168,7 +167,11 @@ func (lb *LoadBalancer) GetNextServerRoundRobin(tag string, servers []*Server) *
 	index := routingDetails.Current % serverlistLength
 
 	for i := 0; i < serverlistLength; i++ {
-		server = backendServers.Servers[index]
+		if len(servers) > 0 {
+			server = servers[index]
+		} else {
+			server = backendServers.Servers[index]
+		}
 
 		server.Lock.RLock()
 		if server.Alive {
@@ -219,7 +222,6 @@ func (lb *LoadBalancer) GetLeastConnectionServer(tag string, servers []*Server) 
 // GetStickySessionServer returns the server associated with the client IP for sticky sessions.
 // If no association exists, selects a server using round-robin and creates a new sticky session.
 func (lb *LoadBalancer) GetStickySessionServer(clientIP string, tag string, servers []*Server) *Server {
-
 	var backendServers *BackendServers
 	var routingDetails *TagRoutingDetails
 
@@ -265,34 +267,35 @@ func (lb *LoadBalancer) serveHTTP(w http.ResponseWriter, r *ShiroxyRequest) {
 		if err != nil {
 			// Handle the case where no port is provided (e.g., IP address without a port)
 			host = r.Request.Host
-			// port = "" // or assign a default port if needed
 		}
 
-		// First, check if the host is an IP address.
-		ip := net.ParseIP(host)
-		if ip != nil {
-			// If it's an IP, proceed with selecting a server based on the IP.
+		if host == "localhost" {
 			server = lb.selectServerBasedOnRule(clientIP, "")
 		} else {
-			// If it's not an IP, assume it's a domain name.
-			domainData := lb.DomainStorage.DomainMetadata[host]
-			if domainData == nil {
-				http.Error(w, "Domain not found", http.StatusNotFound)
-				return
-			}
+			// First, check if the host is an IP address.
+			ip := net.ParseIP(host)
+			if ip != nil {
+				// If it's an IP, proceed with selecting a server based on the IP.
+				server = lb.selectServerBasedOnRule(clientIP, "")
+			} else {
+				// If it's not an IP, assume it's a domain name.
+				domainData := lb.DomainStorage.DomainMetadata[host]
+				if domainData == nil {
+					http.Error(w, "Domain not found", http.StatusNotFound)
+					return
+				}
 
-			// Extract tags and apply tag rules.
-			tags := domainData.Metadata["tags"]
-			if tags == "" && lb.configuration.Backend.Tagrule == "strict" {
-				http.Error(w, "No tag found and strict tag rule is enabled", http.StatusServiceUnavailable)
-				return
-			}
+				// Extract tags and apply tag rules.
+				tags := domainData.Metadata["tags"]
+				if tags == "" && lb.configuration.Backend.Tagrule == "strict" {
+					http.Error(w, "No tag found and strict tag rule is enabled", http.StatusServiceUnavailable)
+					return
+				}
 
-			// Select the server based on the tags (or an empty tag if no tags are present).
-			server = lb.selectServerBasedOnRule(clientIP, tags)
+				// Select the server based on the tags (or an empty tag if no tags are present).
+				server = lb.selectServerBasedOnRule(clientIP, tags)
+			}
 		}
-
-		// fmt.Println("SERVER FOUND==========: ", server)
 
 		// If server is found, forward the request.
 
