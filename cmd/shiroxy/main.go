@@ -16,6 +16,7 @@ import (
 	"shiroxy/pkg/cli"
 	"shiroxy/pkg/logger"
 	"shiroxy/pkg/shutdown"
+	"shiroxy/utils"
 	"sync"
 	"time"
 )
@@ -51,6 +52,12 @@ func main() {
 	logHandler.InjectLogConfig(&configuration.Logging)
 	if err != nil {
 		log.Fatal(err) // Terminate if logger configuration injection fails.
+	}
+
+	logHandler.LogWarning(fmt.Sprintf("Runnig shiroxy in %s MODE", MODE), "STARTUP", "INFO")
+	err = utils.CheckAcmeServer(ACME_SERVER_URL)
+	if err != nil {
+		logHandler.LogError(fmt.Sprintf("amce server error: %s", err.Error()), "Startup", "main")
 	}
 
 	// Starting storage service for storing domain and user data
