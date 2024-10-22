@@ -63,7 +63,47 @@ func (l *Logger) handleLog(content any, event string, packageName string, module
 
 	formattedLog := "[" + formattedDateTime + "] [" + packageName + "] [" + moduleName + "] => " + content.(string)
 
-	if l.logConfig.Enable {
+	if l.logConfig != nil {
+		if l.logConfig.Enable {
+			fmt.Print("\n[" + formattedDateTime + "]")
+			fmt.Print(" [" + packageName + "]")
+			fmt.Print(" [" + moduleName + "]")
+			fmt.Print(" => ")
+			if event == "success" {
+				GreenPrint(content)
+			} else if event == "error" {
+				RedPrint(content)
+			} else if event == "warning" {
+				YellowPrint(content)
+			} else {
+				fmt.Printf(content.(string))
+			}
+		}
+
+		if l.logConfig.EnableRmote {
+			if event == "success" {
+				err := l.sysLogger.Notice(formattedLog)
+				if err != nil {
+					return err
+				}
+			} else if event == "error" {
+				err := l.sysLogger.Err(formattedLog)
+				if err != nil {
+					return err
+				}
+			} else if event == "warning" {
+				err := l.sysLogger.Warning(formattedLog)
+				if err != nil {
+					return err
+				}
+			} else {
+				err := l.sysLogger.Info(formattedLog)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	} else {
 		BluePrint("\n[" + formattedDateTime + "]")
 		BluePrint(" [" + packageName + "]")
 		BluePrint(" [" + moduleName + "]")
@@ -76,30 +116,6 @@ func (l *Logger) handleLog(content any, event string, packageName string, module
 			YellowPrint(content)
 		} else {
 			fmt.Printf(content.(string))
-		}
-	}
-
-	if l.logConfig.EnableRmote {
-		if event == "success" {
-			err := l.sysLogger.Notice(formattedLog)
-			if err != nil {
-				return err
-			}
-		} else if event == "error" {
-			err := l.sysLogger.Err(formattedLog)
-			if err != nil {
-				return err
-			}
-		} else if event == "warning" {
-			err := l.sysLogger.Warning(formattedLog)
-			if err != nil {
-				return err
-			}
-		} else {
-			err := l.sysLogger.Info(formattedLog)
-			if err != nil {
-				return err
-			}
 		}
 	}
 
