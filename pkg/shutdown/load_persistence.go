@@ -26,21 +26,21 @@ func LoadShutdownPersistence(logHandler logger.Logger, configuration *models.Con
 
 	base64DecodedData, err := base64.StdEncoding.DecodeString(string(fileContent))
 	if err != nil {
-		logHandler.LogError(err.Error(), "ShutDown", "Load Persistence S2")
+		logHandler.LogError(err.Error(), "STARTUP", "Load Persistence S2")
 		return
 	}
 
 	var shutDown ShutdownMetadata
 	err = proto.Unmarshal(base64DecodedData, &shutDown)
 	if err != nil {
-		logHandler.LogError(err.Error(), "ShutDown", "Load Persistence S3")
+		logHandler.LogError(err.Error(), "STARTUP", "Load Persistence S3")
 		return
 	}
 
 	var domainDataPersistence domains.DataPersistance
 	err = proto.Unmarshal([]byte(shutDown.DomainMetadata), &domainDataPersistence)
 	if err != nil {
-		logHandler.LogError(err.Error(), "ShutDown", "Load Persistence S4")
+		logHandler.LogError(err.Error(), "STARTUP", "Load Persistence S4")
 		return
 	}
 
@@ -49,5 +49,5 @@ func LoadShutdownPersistence(logHandler logger.Logger, configuration *models.Con
 	}
 
 	storage.WebhookSecret = shutDown.WebhookSecret
-	logHandler.LogSuccess(fmt.Sprintf("Total %d Retrieved\n", len(domainDataPersistence.Domains)), "", "")
+	logHandler.LogSuccess(fmt.Sprintf("Total %d Retrieved\n", len(domainDataPersistence.Domains)), "STARTUP", "INFO")
 }
