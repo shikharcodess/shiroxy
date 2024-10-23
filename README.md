@@ -33,7 +33,7 @@ To get started with shiroxy, clone the repository and follow the installation in
 ```bash
 git clone https://github.com/yourusername/shiroxy.git
 cd shiroxy
-docker compose up -d
+MODE=dev docker compose up --build
 ```
 
 ## Contributing
