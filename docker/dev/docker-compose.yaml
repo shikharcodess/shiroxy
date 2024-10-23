@@ -1,3 +1,4 @@
+version: "3"
 services:
   goapp:
     build:
@@ -8,7 +9,6 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "2210:2210"
     volumes:
       - ./defaults/shiroxy.conf.yaml:/app/defaults/shiroxy.conf.yaml
     command: /app/build/shiroxy -c /app/defaults/shiroxy.conf.yaml

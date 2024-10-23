@@ -1,8 +1,5 @@
 # Use an official Golang image as the base image
-FROM golang:1.21
-
-# Install make and other necessary build tools
-RUN apt-get update && apt-get install -y make build-essential
+FROM golang:1.21-alpine
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -16,16 +13,14 @@ RUN go mod download
 # Copy the entire project to the working directory
 COPY . .
 
-# Accept the MODE argument for selecting the environment
-ARG MODE=dev
+# Build the Go app
+RUN go build -o /app/shiroxy cmd/shiroxy/main.go
 
-# Run make with the specified mode
-RUN make MODE=${MODE}
+RUN make MODE=dev
 
-# Expose the necessary ports
+# Expose the application port if necessary (modify accordingly)
 EXPOSE 80
 EXPOSE 443
-EXPOSE 2210
 
 # Command to run the Go app with the config file
-CMD ["/app/build/shiroxy", "-c", "/app/defaults/shiroxy.conf.yaml"]
+CMD ["/app/shiroxy", "-c", "/app/defaults/shiroxy.conf.yaml"]

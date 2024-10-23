@@ -33,9 +33,7 @@ To get started with shiroxy, clone the repository and follow the installation in
 ```bash
 git clone https://github.com/yourusername/shiroxy.git
 cd shiroxy
-go build -o build/shiroxy
-
-./shiroxy -config /path/to/your/config.yml
+docker compose up -d
 ```
 
 ## Contributing
