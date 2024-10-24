@@ -67,7 +67,7 @@ func (b *BackendController) RegisterNewBackendServer(c *gin.Context) {
 	}
 
 	serverUrl := url.URL{
-		Scheme: b.Context.Configuration.Default.Mode,
+		Scheme: b.Context.Configuration.Frontend.Mode,
 		Host:   fmt.Sprintf("%s:%s", requestBody.Host, requestBody.Port), // The actual address where domain1's server is running
 	}
 

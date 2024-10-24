@@ -92,7 +92,7 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 				// Recover from any panics during request handling to avoid crashing the server.
 				defer func() {
 					if rec := recover(); rec != nil {
-						if configuration.Default.Mode == "dev" {
+						if configuration.Default.DebugMode == "dev" {
 							fmt.Printf("Panic occurred: %v\n", rec)
 							debug.PrintStack() // Print stack trace for debugging in development mode.
 						}

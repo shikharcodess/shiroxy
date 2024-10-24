@@ -1,12 +1,20 @@
 package models
 
 type Config struct {
-	Default  Default  `json:"default"`
-	Frontend Frontend `json:"frontend"`
-	Backend  Backend  `json:"backend"`
-	Logging  Logging  `json:"logging"`
-	Webhook  Webhook  `json:"webhook"`
-	Health   Health   `json:"health"`
+	Environment Environment `json:"environment"`
+	Default     Default     `json:"default"`
+	Frontend    Frontend    `json:"frontend"`
+	Backend     Backend     `json:"backend"`
+	Logging     Logging     `json:"logging"`
+	Webhook     Webhook     `json:"webhook"`
+	Health      Health      `json:"health"`
+}
+
+type Environment struct {
+	Mode                         string `json:"mode"`
+	InstanceName                 string `json:"instancename"`
+	AcmeServerUrl                string `json:"acmeserverurl"`
+	ACMEServerInsecureSkipVerify string `json:"aCMEserverinsecureskipverify"`
 }
 
 type Storage struct {
@@ -23,7 +31,7 @@ type Analytics struct {
 }
 
 type Default struct {
-	Mode                     string       `json:"mode"`
+	DebugMode                string       `json:"debugmode"`
 	LogPath                  string       `json:"logpath"`
 	EnableDnsChallengeSolver bool         `json:"enablednschallengesolver"`
 	DataPersistancePath      string       `json:"datapersistancepath"`

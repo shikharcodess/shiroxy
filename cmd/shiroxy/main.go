@@ -6,7 +6,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"runtime/debug"
 	"shiroxy/cmd/shiroxy/analytics"
 	"shiroxy/cmd/shiroxy/api"
@@ -24,16 +23,10 @@ import (
 var ACME_SERVER_URL string      // URL of the ACME server for certificate generation.
 var INSECURE_SKIP_VERIFY string // Flag to skip SSL verification (for testing purposes).
 var VERSION string              // Shiroxy application version.
-var MODE string
 
 // main is the entry point of the Shiroxy application. It sets up logging, reads configuration,
 // initializes storage, starts analytics, handles graceful shutdown, and starts the API and proxy services.
 func main() {
-	if MODE == "" {
-		MODE = "dev"
-	}
-
-	os.Setenv("SHIROXY_ENVIRONMENT", MODE)
 	wg := sync.WaitGroup{} // WaitGroup to manage concurrency and wait for goroutines to finish.
 
 	// Starting Logger
@@ -54,14 +47,25 @@ func main() {
 		log.Fatal(err) // Terminate if logger configuration injection fails.
 	}
 
-	logHandler.LogWarning(fmt.Sprintf("Runnig shiroxy in %s MODE", MODE), "STARTUP", "INFO")
+	if configuration.Environment.Mode == "" {
+		configuration.Environment.Mode = "dev"
+	}
+
+	// Choosing Acme Ceritficate Directory Url
+	if configuration.Environment.AcmeServerUrl == "" {
+		ACME_SERVER_URL = utils.ChooseAcmeServer(configuration.Environment.Mode)
+	} else {
+		ACME_SERVER_URL = configuration.Environment.AcmeServerUrl
+	}
+
+	logHandler.LogWarning(fmt.Sprintf("Runnig shiroxy in %s MODE", configuration.Environment.Mode), "STARTUP", "INFO")
 	err = utils.CheckAcmeServer(ACME_SERVER_URL)
 	if err != nil {
 		logHandler.LogError(fmt.Sprintf("amce server error: %s", err.Error()), "Startup", "main")
 	}
 
 	// Starting storage service for storing domain and user data
-	storageHandler, err := domains.InitializeStorage(&configuration.Default.Storage, ACME_SERVER_URL, INSECURE_SKIP_VERIFY, &wg)
+	storageHandler, err := domains.InitializeStorage(&configuration.Default.Storage, ACME_SERVER_URL, configuration.Environment.ACMEServerInsecureSkipVerify, &wg)
 	if err != nil {
 		logHandler.LogError(err.Error(), "Startup", "main")
 	}
@@ -93,7 +97,7 @@ func main() {
 	// Deferred function to handle any panic that occurs in the main function, enabling graceful shutdown.
 	defer func() {
 		if r := recover(); r != nil {
-			if configuration.Default.Mode == "dev" {
+			if configuration.Default.DebugMode == "dev" {
 				fmt.Printf("Panic occurred: %v\n", r)
 				debug.PrintStack()
 			}
