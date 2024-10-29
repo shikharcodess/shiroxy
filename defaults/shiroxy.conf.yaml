@@ -12,9 +12,15 @@
 # Version of this configuration file
 version: "1.0.0"
 
+runtime:
+  mode: "stage"
+  instancename: "shiroxy-1"
+
 # Default section of the configuration. It contains settings
 # that are global to shiroxy
 default:
+  environment: ""
+
   # The mode in which shiroxy will be running.
   mode: "dev"
 

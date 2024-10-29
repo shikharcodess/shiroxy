@@ -47,25 +47,25 @@ func main() {
 		log.Fatal(err) // Terminate if logger configuration injection fails.
 	}
 
-	if configuration.Environment.Mode == "" {
-		configuration.Environment.Mode = "dev"
+	if configuration.Runtime.Mode == "" {
+		configuration.Runtime.Mode = "dev"
 	}
 
 	// Choosing Acme Ceritficate Directory Url
-	if configuration.Environment.AcmeServerUrl == "" {
-		ACME_SERVER_URL = utils.ChooseAcmeServer(configuration.Environment.Mode)
+	if configuration.Runtime.AcmeServerUrl == "" {
+		ACME_SERVER_URL = utils.ChooseAcmeServer(configuration.Runtime.Mode)
 	} else {
-		ACME_SERVER_URL = configuration.Environment.AcmeServerUrl
+		ACME_SERVER_URL = configuration.Runtime.AcmeServerUrl
 	}
 
-	logHandler.LogWarning(fmt.Sprintf("Runnig shiroxy in %s MODE", configuration.Environment.Mode), "STARTUP", "INFO")
+	logHandler.LogWarning(fmt.Sprintf("Runnig shiroxy in %s MODE", configuration.Runtime.Mode), "STARTUP", "INFO")
 	err = utils.CheckAcmeServer(ACME_SERVER_URL)
 	if err != nil {
 		logHandler.LogError(fmt.Sprintf("amce server error: %s", err.Error()), "Startup", "main")
 	}
 
 	// Starting storage service for storing domain and user data
-	storageHandler, err := domains.InitializeStorage(&configuration.Default.Storage, ACME_SERVER_URL, configuration.Environment.ACMEServerInsecureSkipVerify, &wg)
+	storageHandler, err := domains.InitializeStorage(&configuration.Default.Storage, ACME_SERVER_URL, configuration.Runtime.ACMEServerInsecureSkipVerify, &wg)
 	if err != nil {
 		logHandler.LogError(err.Error(), "Startup", "main")
 	}

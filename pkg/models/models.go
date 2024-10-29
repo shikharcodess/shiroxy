@@ -1,16 +1,16 @@
 package models
 
 type Config struct {
-	Environment Environment `json:"environment"`
-	Default     Default     `json:"default"`
-	Frontend    Frontend    `json:"frontend"`
-	Backend     Backend     `json:"backend"`
-	Logging     Logging     `json:"logging"`
-	Webhook     Webhook     `json:"webhook"`
-	Health      Health      `json:"health"`
+	Runtime  Runtime  `json:"runtime"`
+	Default  Default  `json:"default"`
+	Frontend Frontend `json:"frontend"`
+	Backend  Backend  `json:"backend"`
+	Logging  Logging  `json:"logging"`
+	Webhook  Webhook  `json:"webhook"`
+	Health   Health   `json:"health"`
 }
 
-type Environment struct {
+type Runtime struct {
 	Mode                         string `json:"mode"`
 	InstanceName                 string `json:"instancename"`
 	AcmeServerUrl                string `json:"acmeserverurl"`
