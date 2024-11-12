@@ -39,15 +39,6 @@ We welcome feature suggestions! Please open an issue with the following details:
 - [Protoc](https://grpc.io/docs/protoc-installation)
 - [Peblle](https://github.com/letsencrypt/pebble) (If you want to work with certification generation)
 
-#### Installation
-
-Clone the repository:
-
-```bash
-git clone https://github.com/yourusername/shiroxy.git
-cd shiroxy
-```
-
 #### Setup Pebble
 
 Clone the pebble repository
@@ -56,4 +47,14 @@ Clone the pebble repository
 git clone https://github.com/letsencrypt/pebble.git
 cd pebble
 go build -o pebble  ./cmd/pebble/main.go
+
+```
+
+#### Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/yourusername/shiroxy.git
+cd shiroxy
 ```

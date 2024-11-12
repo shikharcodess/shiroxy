@@ -1,41 +1,89 @@
 <div align="center">
 
-<!-- <h1>IN DEVELOPMENT</h1> -->
 <img src="https://raw.githubusercontent.com/ShikharY10/shiroxy/main/media/shiroxy_logo_.png" alt="shiroxy Logo">
 
-  <h1>A Reverse Proxy with Multiple Domains, Automatic SSL and Dynamic Routing</h1>
+# Shiroxy: Secure and Dynamic Web Traffic Management
+
+**A Go-based reverse proxy designed for dynamic routing, SSL automation, and scalable domain management.**
+
 </div>
-<!-- <hr> -->
 
-Welcome to the Shiroxy! This Go-based reverse proxy is designed to provide seamless and secure web traffic management with the following key features:
+## Quick Start
 
-## Key Features
-
-- **Automatic SSL Certificates**: Effortlessly handle SSL certificates for a finite number of domain names, ensuring secure connections.
-- **Custom Traffic Routing**: Implement custom logic to route traffic for specific domains to designated locations.
-- **Dynamic Domain Management**: Utilize REST API endpoints to dynamically add and remove domains, enabling flexible and scalable domain management.
-- **System and Process Analytics**: Access detailed system and process analytics through REST APIs, providing valuable insights into the performance and health of the system running the proxy.
-
-## Table of Contents
-
-- [Getting Started](#getting-started)
-- [Configuration File](https://github.com/ShikharY10/shiroxy/blob/main/configuration.md)
-- [API Docs](https://github.com/ShikharY10/shiroxy/blob/main/docs/api.md)
-- [Contributing](#contributing)
-- [License](https://github.com/ShikharY10/shiroxy/blob/main/LICENSE)
-
-<!-- - [API Documentation](#api-documentation) -->
-
-## Getting Started
-
-To get started with shiroxy, clone the repository and follow the installation instructions.
+Get Shiroxy up and running in just a few minutes:
 
 ```bash
 git clone https://github.com/yourusername/shiroxy.git
 cd shiroxy
-MODE=dev docker compose up --build
+docker compose up -d --build
 ```
 
-## Contributing
+## Key Features
 
-We welcome contributions! If you'd like to contribute to this project, please fork the repository and create a pull request with your changes. For major changes, please open an issue first to discuss what you would like to change. See [Contribution Guideline](https://github.com/ShikharY10/shiroxy/blob/main/CONTRIBUTION.md)
+- **Automatic SSL Certificates**: Secure your domains effortlessly.
+- **Custom Traffic Routing**: Tailor routing logic to fit your needs.
+- **Dynamic Domain Management**: Manage domains flexibly via REST API.
+- **System and Process Analytics**: Gain valuable insights with detailed analytics.
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- Go 1.15+
+- Docker
+- Pebble (for local SSL testing)
+
+## Installation
+
+### Local Development
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/yourusername/shiroxy.git
+   cd shiroxy
+   ```
+
+2. Run Pebble, the local test ACME server:
+
+   ```bash
+   cd pebble
+   go build -o pebble cmd/pebble/main.go
+   ./pebble
+   ```
+
+3. Start Shiroxy in development mode:
+   ```bash
+   sudo go run cmd/shiroxy/main.go -c /defaults/shiroxy.conf.yaml
+   ```
+
+### Using Docker
+
+For a dockerized setup, run:
+
+```bash
+git clone https://github.com/yourusername/shiroxy.git
+cd shiroxy
+docker compose up -d --build
+```
+
+## Documentation
+
+- [Configuration File](https://github.com/ShikharY10/shiroxy/blob/main/configuration.md)
+- [Contribution Guide](https://github.com/ShikharY10/shiroxy/blob/main/CONTRIBUTION.md)
+- [Interactive API Docs](https://github.com/ShikharY10/shiroxy/blob/main/docs/api.md)
+- [License](https://github.com/ShikharY10/shiroxy/blob/main/LICENSE)
+
+## Community and Support
+
+Join our growing community:
+
+- [Discussion Forum](https://github.com/ShikharY10/shiroxy/discussions/1)
+
+## How to Contribute
+
+Interested in contributing? Check out the [contribution guidelines](https://github.com/ShikharY10/shiroxy/blob/main/CONTRIBUTION.md) for more information on how you can contribute to Shiroxy.
+
+## License
+
+Shiroxy is MIT licensed. See the [LICENSE](https://github.com/ShikharY10/shiroxy/blob/main/LICENSE) file for more details.
