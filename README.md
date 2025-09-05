@@ -13,7 +13,7 @@
 Get Shiroxy up and running in just a few minutes:
 
 ```bash
-git clone https://github.com/yourusername/shiroxy.git
+git clone https://github.com/shikharcodess/shiroxy.git
 cd shiroxy
 docker compose up -d --build
 ```
