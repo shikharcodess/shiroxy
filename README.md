@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/ShikharY10/shiroxy/main/media/shiroxy_logo_.png" alt="shiroxy Logo">
+<img src="https://raw.githubusercontent.com/shikharcodess/shiroxy/main/media/shiroxy_logo_.png" alt="shiroxy Logo">
 
 # Shiroxy: Secure and Dynamic Web Traffic Management
 
@@ -40,7 +40,7 @@ Before you begin, ensure you have the following installed:
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/shiroxy.git
+   git clone https://github.com/shikharcodess/shiroxy.git
    cd shiroxy
    ```
 
@@ -62,28 +62,28 @@ Before you begin, ensure you have the following installed:
 For a dockerized setup, run:
 
 ```bash
-git clone https://github.com/yourusername/shiroxy.git
+git clone https://github.com/shikharcodess/shiroxy.git
 cd shiroxy
 docker compose up -d --build
 ```
 
 ## Documentation
 
-- [Configuration File](https://github.com/ShikharY10/shiroxy/blob/main/configuration.md)
-- [Contribution Guide](https://github.com/ShikharY10/shiroxy/blob/main/CONTRIBUTION.md)
-- [Interactive API Docs](https://github.com/ShikharY10/shiroxy/blob/main/docs/api.md)
-- [License](https://github.com/ShikharY10/shiroxy/blob/main/LICENSE)
+- [Configuration File](https://github.com/shikharcodess/shiroxy/blob/main/configuration.md)
+- [Contribution Guide](https://github.com/shikharcodess/shiroxy/blob/main/CONTRIBUTION.md)
+- [Interactive API Docs](https://github.com/shikharcodess/shiroxy/blob/main/docs/api.md)
+- [License](https://github.com/shikharcodess/shiroxy/blob/main/LICENSE)
 
 ## Community and Support
 
 Join our growing community:
 
-- [Discussion Forum](https://github.com/ShikharY10/shiroxy/discussions/1)
+- [Discussion Forum](https://github.com/shikharcodess/shiroxy/discussions/1)
 
 ## How to Contribute
 
-Interested in contributing? Check out the [contribution guidelines](https://github.com/ShikharY10/shiroxy/blob/main/CONTRIBUTION.md) for more information on how you can contribute to Shiroxy.
+Interested in contributing? Check out the [contribution guidelines](https://github.com/shikharcodess/shiroxy/blob/main/CONTRIBUTION.md) for more information on how you can contribute to Shiroxy.
 
 ## License
 
-Shiroxy is MIT licensed. See the [LICENSE](https://github.com/ShikharY10/shiroxy/blob/main/LICENSE) file for more details.
+Shiroxy is MIT licensed. See the [LICENSE](https://github.com/shikharcodess/shiroxy/blob/main/LICENSE) file for more details.
