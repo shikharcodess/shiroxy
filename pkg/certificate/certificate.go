@@ -29,13 +29,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// Run pebble (the ACME server) before running this example:
-//
-// PEBBLE_VA_ALWAYS_VALID=1 pebble -config ./test/config/pebble-config.json -strict
-// func GenerateCertificate(domain string) {
-
-// }
-
 func GenerateCertificate(domain string, email string) error {
 	// put your domains here (IDNs must be in ASCII form)
 	domains := []string{domain}
@@ -77,14 +70,6 @@ func GenerateCertificate(domain string, email string) error {
 
 	fmt.Println(strings.TrimSpace(email))
 	var emails []string = []string{}
-	// emails = append(emails, "yshikharfzd10@gmail.com")
-	// if len(email) > 0 {
-	// 	emails = append(emails, email)
-	// }
-
-	fmt.Println("emails ===========")
-	fmt.Println(emails)
-	fmt.Println("length of emails: ", len(emails))
 
 	account := acme.Account{
 		Contact:              emails,
@@ -97,18 +82,16 @@ func GenerateCertificate(domain string, email string) error {
 
 	// now we can make our low-level ACME client
 	client := &acme.Client{
-		Directory: "https://127.0.0.1:14000/dir", // default pebble endpoint
+		Directory: "https://127.0.0.1:14000/dir",
 		HTTPClient: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true, // REMOVE THIS FOR PRODUCTION USE!
+					InsecureSkipVerify: true,
 				},
 			},
 		},
 		Logger: logger,
 	}
-
-	fmt.Println("0============")
 
 	// if the account is new, we need to create it; only do this once!
 	// then be sure to securely store the account key and metadata so
@@ -117,8 +100,6 @@ func GenerateCertificate(domain string, email string) error {
 	if err != nil {
 		return fmt.Errorf("new account: %v", err)
 	}
-
-	fmt.Println("1=================")
 
 	// now we can actually get a cert; first step is to create a new order
 	var ids []acme.Identifier
@@ -146,67 +127,28 @@ func GenerateCertificate(domain string, email string) error {
 
 		fmt.Println("=========================== authzURL: ", authzURL)
 
-		// pick any available challenge to solve
 		challenge := authz.Challenges[0]
 
-		fmt.Println("challenge: ", challenge.Identifier)
-		fmt.Println("K ===== ", challenge.KeyAuthorization)
-		fmt.Println("T ===== ", challenge.Token)
-
-		
-
-		// at this point, you must prepare to solve the challenge; how
-		// you do this depends on the challenge (see spec for details).
-		// usually this involves configuring an HTTP or TLS server, but
-		// it might also involve setting a DNS record (which can take
-		// time to propagate, depending on the provider!) - this example
-		// does NOT do this step for you - it's "bring your own solver."
-
-		// once you are ready to solve the challenge, let the ACME
-		// server know it should begin
 		challenge, err = client.InitiateChallenge(ctx, account, challenge)
 		if err != nil {
 			return fmt.Errorf("initiating challenge %q: %v", challenge.URL, err)
 		}
-
-		fmt.Println("challenge: ", challenge)
-
-		// now the challenge should be under way; at this point, we can
-		// continue initiating all the other challenges so that they are
-		// all being solved in parallel (this saves time when you have a
-		// large number of SANs on your certificate), but this example is
-		// simple, so we will just do one at a time; we wait for the ACME
-		// server to tell us the challenge has been solved by polling the
-		// authorization status
 		authz, err = client.PollAuthorization(ctx, account, authz)
 		if err != nil {
 			return fmt.Errorf("solving challenge: %v", err)
 		}
-
-		// if we got here, then the challenge was solved successfully, hurray!
 	}
 
-	fmt.Println("4")
-
-	// to request a certificate, we finalize the order; this function
-	// will poll the order status for us and return once the cert is
-	// ready (or until there is an error)
 	order, err = client.FinalizeOrder(ctx, account, order, csr.Raw)
 	if err != nil {
 		return fmt.Errorf("finalizing order: %v", err)
 	}
 
-	// we can now download the certificate; the server should actually
-	// provide the whole chain, and it can even offer multiple chains
-	// of trust for the same end-entity certificate, so this function
-	// returns all of them; you can decide which one to use based on
-	// your own requirements
 	certChains, err := client.GetCertificateChain(ctx, account, order.Certificate)
 	if err != nil {
 		return fmt.Errorf("downloading certs: %v", err)
 	}
 
-	// all done! store it somewhere safe, along with its key
 	for _, cert := range certChains {
 		fmt.Printf("Certificate %q:\n%s\n\n", cert.URL, cert.ChainPEM)
 	}

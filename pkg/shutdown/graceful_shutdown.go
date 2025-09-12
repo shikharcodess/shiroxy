@@ -1,8 +1,6 @@
 // Author: @ShikharY10
-// Docs Author: ChatGPT
+// Docs Author: Copilot
 
-// Package shutdown provides utilities for handling graceful shutdown of applications,
-// including data persistence and resource cleanup.
 package shutdown
 
 import (
@@ -22,61 +20,60 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// HandleGracefulShutdown handles the application's graceful shutdown process,
-// including cleanup, data persistence, and logging.
+// HandleGracefulShutdown manages the graceful shutdown process of the application.
+// It handles both signal-based and panic-based shutdowns, performs cleanup, persists data,
+// and logs the shutdown status.
+//
 // Parameters:
-//   - fromdefer: bool, indicates if the function is called from a deferred panic recovery.
-//   - panicData: interface{}, contains data related to the panic if called during recovery.
-//   - configuration: *models.Config, application configuration settings.
-//   - storage: *domains.Storage, domain metadata storage instance.
-//   - logHandler: *logger.Logger, logger instance for logging messages.
-//   - analyticsConfiguration: *analytics.AnalyticsConfiguration, analytics configuration instance for managing analytics data.
-//   - wg: *sync.WaitGroup, synchronization primitive to wait for all cleanup goroutines.
+//   - fromdefer: Indicates if the shutdown was triggered from a deferred panic recovery.
+//   - panicData: The data recovered from a panic, if any.
+//   - configuration: Application configuration containing persistence paths and settings.
+//   - storage: Storage object containing domain metadata and webhook secrets.
+//   - logHandler: Logger instance for logging shutdown events and errors.
+//   - analyticsConfiguration: Analytics configuration for reading and stopping analytics data.
+//   - wg: WaitGroup to synchronize goroutines during shutdown.
+//
+// The function listens for OS signals (SIGINT, SIGTERM) unless triggered by a panic,
+// marshals and persists domain and analytics data, and logs the outcome before exiting.
+//
+// cleanup writes the provided data string to the specified file path.
+// Returns an error if file creation or writing fails.
 func HandleGracefulShutdown(fromdefer bool, panicData interface{}, configuration *models.Config, storage *domains.Storage, logHandler *logger.Logger, analyticsConfiguration *analytics.AnalyticsConfiguration, wg *sync.WaitGroup) {
 	shiroxyEnvionment := os.Getenv("SHIROXY_ENVIRONMENT")
 	if shiroxyEnvionment == "" {
 		shiroxyEnvionment = "dev"
 	}
 
-	// Channel to listen for OS signals (e.g., SIGINT, SIGTERM).
 	var sigs chan os.Signal
 	if !fromdefer {
 		sigs = make(chan os.Signal, 1)
-		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM) // Notify channel on interrupt/termination signals.
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	}
 
-	// Channel to indicate the completion status of the shutdown process.
 	done := make(chan bool, 1)
 
-	// Add to the WaitGroup to ensure all cleanup goroutines are completed.
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		if !fromdefer {
-			// If not called from a deferred panic recovery, wait for an OS signal.
 			sig := <-sigs
 			logHandler.Log(fmt.Sprintf("Signal Received: %s", sig.String()), "ShutDown", "👋")
 		} else {
-			// If called during panic recovery, log the panic data.
 			logHandler.Log(fmt.Sprintf("Panic Recovered: %v", panicData), "ShutDown", "👋")
 		}
 		logHandler.Log("Performing Cleanup And Data Persistence...", "ShutDown", "🤞")
 
-		// Perform the cleanup process in a separate goroutine.
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			// Retrieve analytics data and stop analytics.
 			analyticsData := <-analyticsConfiguration.ReadAnalyticsData
 			analyticsConfiguration.StopAnalytics()
 
-			// Marshal analytics data to JSON format.
 			analyticsJsonMarshaledData, err := json.Marshal(analyticsData)
 			if err != nil {
 				logHandler.LogError(err.Error(), "Shutdown", "")
 			}
 
-			// Collect domain metadata for persistence.
 			var domainMetadataArray []*domains.DomainMetadata
 			if storage.DomainMetadata != nil {
 				for _, domainMetadata := range storage.DomainMetadata {
@@ -84,45 +81,38 @@ func HandleGracefulShutdown(fromdefer bool, panicData interface{}, configuration
 				}
 			}
 
-			// Create data persistence object.
 			dataPersistance := domains.DataPersistance{
-				Datetime: "", // Timestamp (if needed) can be set here.
+				Datetime: "",
 				Domains:  domainMetadataArray,
 			}
 
-			// Marshal domain data into a protobuf format.
 			storageData, err := proto.Marshal(&dataPersistance)
 			if err != nil {
 				logHandler.LogError(err.Error(), "Shutdown", "")
 			}
 
-			// Create a shutdown metadata object containing analytics and domain information.
 			shutdownMetadata := ShutdownMetadata{
 				DomainMetadata: storageData,
 				SystemData:     analyticsJsonMarshaledData,
 				WebhookSecret:  storage.WebhookSecret,
 			}
 
-			// Marshal the shutdown metadata into protobuf format.
 			shutdownMarshaledMetadata, err := proto.Marshal(&shutdownMetadata)
 			if err != nil {
 				logHandler.LogError(err.Error(), "Shutdown", "")
 			}
 
-			// Encode the shutdown metadata to a Base64 string.
 			base64EncodedData := base64.StdEncoding.EncodeToString(shutdownMarshaledMetadata)
 
-			// Write the encoded data to a file for persistence.
 			err = cleanup(fmt.Sprintf("%s/%s-persistence.shiroxy", configuration.Default.DataPersistancePath, shiroxyEnvionment), base64EncodedData)
 			if err != nil {
 				logHandler.Log(err.Error(), "Shutdown", "Error")
 			}
 			isShutDownSuccessful := err == nil
-			done <- isShutDownSuccessful // Send the success status to the `done` channel.
+			done <- isShutDownSuccessful
 		}()
 	}()
 
-	// Wait for the cleanup process to complete and retrieve the shutdown status.
 	closeSignal := <-done
 	var signalText string
 	var signalEmoji string
@@ -136,26 +126,18 @@ func HandleGracefulShutdown(fromdefer bool, panicData interface{}, configuration
 	logHandler.LogError(fmt.Sprintf("Exiting Gracefully... | %s", signalText), "Shutdown", signalEmoji)
 	fmt.Println("")
 
-	// Exit the application.
 	os.Exit(0)
 }
 
-// cleanup writes the provided data to the specified file path for persistence.
-// Parameters:
-//   - filePath: string, the path of the file to write to.
-//   - data: string, the data to write to the file.
-//
-// Returns:
-//   - error: error if the file creation or writing fails.
+// cleanup creates or truncates the file at the specified filePath and writes the provided data string to it.
+// It returns an error if the file cannot be created or written to.
 func cleanup(filePath, data string) error {
-	// Create the file at the specified path.
 	f, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	// Write the data to the file.
 	_, err = f.WriteString(data)
 	if err != nil {
 		return err

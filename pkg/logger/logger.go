@@ -108,14 +108,15 @@ func (l *Logger) handleLog(content any, event string, packageName string, module
 		BluePrint(" [" + packageName + "]")
 		BluePrint(" [" + moduleName + "]")
 		CyanPrint(" => ")
-		if event == "success" {
+		switch event {
+		case "success":
 			GreenPrint(content)
-		} else if event == "error" {
+		case "error":
 			RedPrint(content)
-		} else if event == "warning" {
+		case "warning":
 			YellowPrint(content)
-		} else {
-			fmt.Printf(content.(string))
+		default:
+			fmt.Printf("%s", content.(string))
 		}
 	}
 

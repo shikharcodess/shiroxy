@@ -6,10 +6,11 @@
 package proxy
 
 import (
-	"crypto/tls"                  // Provides TLS (Transport Layer Security) support.
-	"errors"                      // Defines error handling for functions.
-	"fmt"                         // Implements formatted I/O operations.
-	"log"                         // Implements simple logging capabilities.
+	"crypto/tls" // Provides TLS (Transport Layer Security) support.
+	"errors"     // Defines error handling for functions.
+	"fmt"        // Implements formatted I/O operations.
+	"log"        // Implements simple logging capabilities.
+	"net"
 	"net/http"                    // Provides HTTP client and server implementations.
 	"net/url"                     // Implements URL parsing and manipulation.
 	"runtime/debug"               // Provides stack traces to aid debugging.
@@ -20,6 +21,7 @@ import (
 	"shiroxy/public"              // Custom package for public constants and assets.
 	"strings"                     // Implements string manipulation functions.
 	"sync"                        // Provides synchronization primitives.
+	"time"
 )
 
 var DnsChallengeSolverMapped bool = false
@@ -45,28 +47,65 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 	for _, server := range configuration.Backend.Servers {
 		// Construct the URL for each server using its host and port from the configuration.
 		host := url.URL{
-			Scheme: configuration.Frontend.Mode, // Scheme could be HTTP/HTTPS based on frontend mode.
+			// Scheme could be HTTP/HTTPS based on frontend mode.
+			Scheme: configuration.Frontend.Mode,
 			Host:   fmt.Sprintf("%s:%s", server.Host, server.Port),
 		}
 
 		// Append the server to the servers slice.
 		servers = append(servers, &Server{
-			Id:    server.Id, // Unique identifier for the server.
-			URL:   &host,     // URL of the backend server.
-			Alive: false,     // Indicates if the server is alive (default to false).
+
+			// Unique identifier for the server.
+			Id: server.Id,
+
+			// URL of the backend server.
+			URL: &host,
+
+			// Indicates if the server is alive (default to false).
+			Alive: false,
 
 			// Shiroxy structure to hold logger and request director for request URL rewriting.
 			Shiroxy: &Shiroxy{
-				Logger: logHandler, // Logger for handling log messages.
+				// Logger for handling log messages.
+				Logger: logHandler,
 				Director: func(req *http.Request) {
-					RewriteRequestURL(req, &host) // Modifies the request URL for backend routing.
+					// Modifies the request URL for backend routing.
+					RewriteRequestURL(req, &host)
 				},
+				Transport: &http.Transport{
+					Proxy: http.ProxyFromEnvironment,
+					DialContext: (&net.Dialer{
+						Timeout:   30 * time.Second,
+						KeepAlive: 60 * time.Second, // Increased keep-alive for better connection reuse
+						DualStack: true,             // Enable IPv4/IPv6 dual stack
+					}).DialContext,
+					ForceAttemptHTTP2:     true,
+					MaxIdleConns:          300,               // Increased total idle connections
+					IdleConnTimeout:       120 * time.Second, // Increased timeout for better reuse
+					TLSHandshakeTimeout:   10 * time.Second,
+					ExpectContinueTimeout: 1 * time.Second,
+					MaxIdleConnsPerHost:   100,                    // Balanced value for connection pooling
+					MaxConnsPerHost:       200,                    // Setting a reasonable limit to prevent overwhelming backends
+					WriteBufferSize:       int(DefaultBufferSize), // Use our buffer size constant
+					ReadBufferSize:        int(DefaultBufferSize), // Use our buffer size constant
+					TLSClientConfig: &tls.Config{
+						MinVersion:         tls.VersionTLS12, // Ensure modern TLS
+						InsecureSkipVerify: false,            // Always validate certificates in production
+					},
+					// HTTP/2 specific settings
+					// These are new settings that enhance HTTP/2 performance
+					MaxResponseHeaderBytes: 64 * 1024,
+
+					// Disable compression because we'll handle it separately
+					DisableCompression: true,
+				},
+				BufferPool: NewSyncBufferPool(32 * 1024),
 			},
-			Tags:           strings.Split(server.Tags, ","), // Splits server tags by comma for tag-based routing.
+			// Splits server tags by comma for tag-based routing.
+			Tags:           strings.Split(server.Tags, ","),
 			Lock:           &sync.RWMutex{},
 			HealthCheckUrl: server.HealthUrl,
 		})
-
 	}
 
 	// Set the servers to the BackendServers instance.
@@ -114,7 +153,6 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 						http.Error(w, "Filename not found", http.StatusBadRequest)
 						return
 					}
-					fmt.Println("====================== filename: ", filename)
 					domainName, ok := storage.DnsChallengeToken[filename]
 					if !ok {
 						http.Error(w, "no domain found for filename", http.StatusBadRequest)
@@ -135,7 +173,6 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 					}
 
 					fmt.Fprint(w, domainMetadata.DnsChallengeKey)
-					fmt.Println("DNS challenge endpoint accessed=========================")
 					w.WriteHeader(200)
 					w.Write([]byte{})
 					return
@@ -145,17 +182,33 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 				if (configuration.Frontend.HttpToHttps) && r.URL.Port() == "80" && r.TLS == nil {
 					secureFrontend := loadbalancer.Frontends["443"]
 					if secureFrontend != nil {
-						url := fmt.Sprintf("https://%s%s", r.Host, r.RequestURI)
-						http.Redirect(w, r, url, http.StatusMovedPermanently)
+						redirectUrl := url.URL{
+							Scheme:   "https",
+							Host:     r.Host,
+							Path:     r.URL.Path,
+							RawQuery: r.URL.RawQuery,
+						}
+						http.Redirect(w, r, redirectUrl.String(), http.StatusMovedPermanently)
 					} else {
 						domainName := strings.TrimSpace(r.Host)
-						domainMetadata := storage.DomainMetadata[domainName]
+						domainMetadata, ok := storage.DomainMetadata[domainName]
+
+						if !ok || domainMetadata == nil {
+							w.Header().Add("Content-Type", "text/html")
+							w.WriteHeader(404)
+							_, err := w.Write([]byte(domainNotFoundErrorResponse))
+							if err != nil {
+								log.Printf("failed to write response: %v", err)
+							}
+							return
+						}
+
 						if domainMetadata.Status == "inactive" {
 							if strings.Contains(r.RequestURI, ".well-known/acme-challenge") {
 								loadbalancer.ServeHTTP(w, r)
 							} else {
 								w.Header().Add("Content-Type", "text/html")
-								w.WriteHeader(400) // Write a 400 Bad Request status.
+								w.WriteHeader(404)
 								_, err := w.Write([]byte(domainNotFoundErrorResponse))
 								if err != nil {
 									log.Printf("failed to write response: %v", err)
@@ -166,7 +219,7 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 						}
 					}
 				} else {
-					loadbalancer.ServeHTTP(w, r) // Serve HTTP request through the load balancer.
+					loadbalancer.ServeHTTP(w, r)
 				}
 			}),
 		}
@@ -184,9 +237,10 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 		var err error
 
 		// Create HTTP server based on the target mode.
-		if bind.Target == "multiple" {
+		switch bind.Target {
+		case "multiple":
 			server, secure, err = CreateMultipleTargetServer(&bind, storage, frontend.handlerFunc)
-		} else if bind.Target == "single" {
+		case "single":
 			server, secure, err = CreateSingleTargetServer(&bind, storage, frontend.handlerFunc)
 		}
 
@@ -216,7 +270,19 @@ func CreateMultipleTargetServer(bindData *models.FrontendBind, storage *domains.
 		server := &http.Server{
 			Addr:    fmt.Sprintf("%s:%s", bindData.Host, bindData.Port),
 			Handler: http.HandlerFunc(handlerFunc),
+
+			// Timeouts to prevent slow clients from consuming resources
+			ReadTimeout:  5 * time.Second,
+			WriteTimeout: 10 * time.Second,
+			IdleTimeout:  120 * time.Second,
+
+			// Increase maximum header size if needed
+			MaxHeaderBytes: 1 << 20,
+
+			// Custom TLS
 			TLSConfig: &tls.Config{
+				// TLS configuration for HTTP/2
+				MinVersion: tls.VersionTLS12,
 				ClientAuth: ResolveSecurityPolicy(bindData.SecureSetting.SecureVerify),
 				GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 					// Load TLS certificate based on the domain metadata.
@@ -316,13 +382,14 @@ func CreateSingleTargetServer(bindData *models.FrontendBind, storage *domains.St
 // ResolveSecurityPolicy maps the given policy string to a tls.ClientAuthType value.
 // Returns the appropriate tls.ClientAuthType based on the policy.
 func ResolveSecurityPolicy(policy string) tls.ClientAuthType {
-	if policy == "none" {
+	switch policy {
+	case "none":
 		return tls.NoClientCert
-	} else if policy == "optional" {
+	case "optional":
 		return tls.RequestClientCert
-	} else if policy == "required" {
+	case "required":
 		return tls.RequireAndVerifyClientCert
-	} else {
+	default:
 		return tls.NoClientCert
 	}
 }

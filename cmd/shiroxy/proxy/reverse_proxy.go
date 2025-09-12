@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
@@ -212,6 +213,9 @@ type Shiroxy struct {
 	// The transport used to perform proxy requests.
 	// If nil, http.DefaultTransport is used.
 	Transport http.RoundTripper
+
+	// ConnectionStats tracks HTTP/2 connection pool statistics
+	ConnectionStats *ConnectionPoolStats
 
 	// FlushInterval specifies the flush interval
 	// to flush to the client while copying the
@@ -441,7 +445,21 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *ShiroxyRequest) error {
 	}
 	outreq = outreq.WithContext(httptrace.WithClientTrace(outreq.Context(), trace))
 
+	// Add HTTP/2 connection tracing if we have access to the connection stats
+	if p.ConnectionStats != nil {
+		outreq = HTTP2ConnectionTracer(p.ConnectionStats, outreq)
+	}
+
+	// Record the start time for calculating request duration
+	startTime := time.Now()
+
 	res, err := transport.RoundTrip(outreq)
+
+	// Record the request completion if we have access to the connection stats
+	if p.ConnectionStats != nil {
+		p.ConnectionStats.RecordRequestCompletion(time.Since(startTime))
+	}
+
 	if err != nil {
 		// p.getErrorHandler()(rw, outreq, err)
 		return err
@@ -637,6 +655,37 @@ func (p *Shiroxy) logf(format string, args ...any) {
 	} else {
 		log.Printf(format, args...)
 	}
+}
+
+func (p *Shiroxy) compressHandler(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check if client accepts gzip
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			h.ServeHTTP(w, r)
+			return
+		}
+
+		// Set appropriate headers
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Vary", "Accept-Encoding")
+
+		// Create gzip writer
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+
+		// Create gzip response writer
+		gzw := gzipResponseWriter{Writer: gz, ResponseWriter: w}
+		h.ServeHTTP(gzw, r)
+	})
+}
+
+type gzipResponseWriter struct {
+	io.Writer
+	http.ResponseWriter
+}
+
+func (gzw gzipResponseWriter) Write(b []byte) (int, error) {
+	return gzw.Writer.Write(b)
 }
 
 type maxLatencyWriter struct {

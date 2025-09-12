@@ -67,7 +67,8 @@ type LoadBalancer struct {
 	HealthChecker       *HealthChecker
 	DomainStorage       *domains.Storage
 	TagCache            *TagCache
-	TagTrie             *TrieNode // Trie structure for tag indexing.
+	TagTrie             *TrieNode            // Trie structure for tag indexing.
+	ConnectionStats     *ConnectionPoolStats // Stats for HTTP/2 connection pooling
 }
 
 // NewLoadBalancer initializes a LoadBalancer with health checking, tag indexing, and caching mechanisms.
@@ -101,6 +102,7 @@ func NewLoadBalancer(configuration *models.Config, servers *BackendServers, webh
 		TagCache:            NewTagCache(100), // Initialize a cache with a capacity of 100 entries.
 		TagTrie:             NewTrieNode(),    // Initialize a trie for tag-based routing.
 		Frontends:           make(map[string]*Frontends),
+		ConnectionStats:     NewConnectionPoolStats(), // Initialize connection pool stats
 	}
 
 	// Add a default routing entry for requests without specific tags.
@@ -513,7 +515,7 @@ func (tc *TagCache) moveToEnd(tag string) {
 type TrieNode struct {
 	Children map[rune]*TrieNode
 	Servers  *BackendServers
-	End      bool // Indicates if the node represents the end of a valid tag.
+	End      bool
 }
 
 // NewTrieNode creates and returns a new TrieNode instance.
