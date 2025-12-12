@@ -508,13 +508,26 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *ShiroxyRequest) error {
 
 	// Check if compression should be applied
 	var responseWriter http.ResponseWriter = rw
+	var gzipWriter *gzip.Writer
 	if p.shouldCompress(req.Request, res) {
-		// Wrap the response writer with compression
-		gz := gzip.NewWriter(rw)
-		defer gz.Close()
+		// Remove Content-Length header before WriteHeader since compressed size will differ
+		rw.Header().Del("Content-Length")
+		// Set compression headers before WriteHeader
+		rw.Header().Set("Content-Encoding", "gzip")
+		rw.Header().Set("Vary", "Accept-Encoding")
+
+		// Create gzip writer
+		gzipWriter = gzip.NewWriter(rw)
+		defer func() {
+			if closeErr := gzipWriter.Close(); closeErr != nil {
+				p.Logger.LogError(fmt.Sprintf("failed to close gzip writer: %v", closeErr), "Shiroxy", "Error")
+			}
+		}()
+
+		// Wrap with gzip response writer
 		gzw := &gzipResponseWriter{
 			ResponseWriter: rw,
-			Writer:         gz,
+			Writer:         gzipWriter,
 		}
 		responseWriter = gzw
 	}
@@ -705,35 +718,24 @@ func (p *Shiroxy) shouldCompress(req *http.Request, res *http.Response) bool {
 }
 
 type gzipResponseWriter struct {
-	io.Writer
 	http.ResponseWriter
-	wroteHeader bool
-}
-
-func (w *gzipResponseWriter) Header() http.Header {
-	return w.ResponseWriter.Header()
-}
-
-func (w *gzipResponseWriter) WriteHeader(statusCode int) {
-	if w.wroteHeader {
-		return
-	}
-	w.wroteHeader = true
-	// Set gzip headers
-	header := w.ResponseWriter.Header()
-	header.Set("Content-Encoding", "gzip")
-	header.Set("Vary", "Accept-Encoding")
-	// Remove Content-Length, since it will be wrong for gzipped content
-	header.Del("Content-Length")
-	w.ResponseWriter.WriteHeader(statusCode)
+	Writer io.Writer
 }
 
 func (w *gzipResponseWriter) Write(b []byte) (int, error) {
-	if !w.wroteHeader {
-		// If WriteHeader hasn't been called yet, call it with 200
-		w.WriteHeader(http.StatusOK)
-	}
 	return w.Writer.Write(b)
+}
+
+// Flush implements http.Flusher interface
+func (w *gzipResponseWriter) Flush() {
+	// Flush the gzip writer first
+	if gw, ok := w.Writer.(*gzip.Writer); ok {
+		gw.Flush()
+	}
+	// Then flush the underlying response writer if it supports flushing
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
 }
 
 type maxLatencyWriter struct {
