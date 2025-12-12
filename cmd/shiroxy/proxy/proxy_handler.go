@@ -195,18 +195,20 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 						}
 						http.Redirect(w, r, redirectUrl.String(), http.StatusMovedPermanently)
 					} else {
-					domainName := strings.TrimSpace(r.Host)
-					domainMetadata, ok := storage.DomainMetadata[domainName]
+						domainName := strings.TrimSpace(r.Host)
+						domainMetadata, ok := storage.DomainMetadata[domainName]
 
-					if !ok || domainMetadata == nil {
-						w.Header().Add("Content-Type", "text/html")
-						w.WriteHeader(http.StatusServiceUnavailable)
-						_, err := w.Write([]byte(domainNotFoundErrorResponse))
-						if err != nil {
-							log.Printf("failed to write response: %v", err)
+						if !ok || domainMetadata == nil {
+							w.Header().Add("Content-Type", "text/html")
+							w.WriteHeader(http.StatusServiceUnavailable)
+							_, err := w.Write([]byte(domainNotFoundErrorResponse))
+							if err != nil {
+								log.Printf("failed to write response: %v", err)
+							}
+							return
 						}
-						return
-					}						if domainMetadata.Status == "inactive" {
+
+						if domainMetadata.Status == "inactive" {
 							if strings.Contains(r.RequestURI, ".well-known/acme-challenge") {
 								loadbalancer.ServeHTTP(w, r)
 							} else {
