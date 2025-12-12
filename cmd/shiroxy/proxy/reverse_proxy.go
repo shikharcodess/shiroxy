@@ -504,13 +504,9 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *ShiroxyRequest) error {
 			Writer:         gz,
 		}
 		responseWriter = gzw
-		// Set compression headers before writing status
-		rw.Header().Set("Content-Encoding", "gzip")
-		rw.Header().Set("Vary", "Accept-Encoding")
-		rw.Header().Del("Content-Length") // Remove Content-Length as it will be wrong after compression
 	}
 
-	rw.WriteHeader(res.StatusCode)
+	responseWriter.WriteHeader(res.StatusCode)
 
 	err = p.copyResponse(responseWriter, res.Body, p.flushInterval(res))
 	if err != nil {
@@ -718,6 +714,10 @@ type gzipResponseWriter struct {
 	io.Writer
 	http.ResponseWriter
 	wroteHeader bool
+}
+
+func (w *gzipResponseWriter) Header() http.Header {
+	return w.ResponseWriter.Header()
 }
 
 func (w *gzipResponseWriter) WriteHeader(statusCode int) {
