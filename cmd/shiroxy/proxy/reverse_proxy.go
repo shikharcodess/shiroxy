@@ -275,6 +275,19 @@ var hopHeaders = []string{
 	"Upgrade",
 }
 
+// compressibleTypes lists content types that should be compressed with gzip.
+// This is defined at package level to avoid repeated allocations.
+var compressibleTypes = []string{
+	"text/",
+	"application/json",
+	"application/javascript",
+	"application/xml",
+	"application/x-javascript",
+	"application/xhtml+xml",
+	"application/rss+xml",
+	"application/atom+xml",
+}
+
 func (p *Shiroxy) DefaultErrorHandler(rw http.ResponseWriter, req *http.Request, err error) {
 	// p.logf("http: shiroxy error: %v", err)
 	p.Logger.LogError(err.Error(), "Shiroxy", "Error")
@@ -515,7 +528,7 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *ShiroxyRequest) error {
 		// is abort the request. Issue 23643: Shiroxy should use ErrAbortHandler
 		// on read error while copying body.
 		if !shouldPanicOnCopyError(req.Request) {
-			p.logf("suppressing panic for copyResponse error in test; copy error: %v", err)
+			p.Logger.LogError(fmt.Sprintf("suppressing panic for copyResponse error in test; copy error: %v", err), "Shiroxy", "Error")
 			return nil
 		}
 		panic(http.ErrAbortHandler)
@@ -639,7 +652,7 @@ func (p *Shiroxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, e
 	for {
 		nr, rerr := src.Read(buf)
 		if rerr != nil && rerr != io.EOF && rerr != context.Canceled {
-			p.logf("httputil: Shiroxy read error during body copy: %v", rerr)
+			p.Logger.LogError(fmt.Sprintf("httputil: Shiroxy read error during body copy: %v", rerr), "Shiroxy", "Error")
 		}
 		if nr > 0 {
 			nw, werr := dst.Write(buf[:nr])
@@ -662,14 +675,6 @@ func (p *Shiroxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, e
 	}
 }
 
-func (p *Shiroxy) logf(format string, args ...any) {
-	if p.ErrorLog != nil {
-		p.ErrorLog.Printf(format, args...)
-	} else {
-		log.Printf(format, args...)
-	}
-}
-
 // shouldCompress determines if the response should be compressed based on
 // client capabilities and content type
 func (p *Shiroxy) shouldCompress(req *http.Request, res *http.Response) bool {
@@ -689,18 +694,7 @@ func (p *Shiroxy) shouldCompress(req *http.Request, res *http.Response) bool {
 		return false
 	}
 
-	// List of compressible content types
-	compressibleTypes := []string{
-		"text/",
-		"application/json",
-		"application/javascript",
-		"application/xml",
-		"application/x-javascript",
-		"application/xhtml+xml",
-		"application/rss+xml",
-		"application/atom+xml",
-	}
-
+	// Check against the package-level compressible types list
 	for _, compressible := range compressibleTypes {
 		if strings.HasPrefix(contentType, compressible) {
 			return true
