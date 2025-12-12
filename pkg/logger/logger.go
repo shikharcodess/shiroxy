@@ -61,7 +61,7 @@ func (l *Logger) handleLog(content any, event string, packageName string, module
 	currentTime := time.Now()
 	formattedDateTime := currentTime.Format("02/01/2006 15:04:05")
 
-	formattedLog := "[" + formattedDateTime + "] [" + packageName + "] [" + moduleName + "] => " + content.(string)
+	formattedLog := fmt.Sprintf("[%s] [%s] [%s] => %v", formattedDateTime, packageName, moduleName, content)
 
 	if l.logConfig != nil {
 		if l.logConfig.Enable {
