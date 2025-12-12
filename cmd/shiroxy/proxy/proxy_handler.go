@@ -1,5 +1,5 @@
 // Author: @ShikharY10
-// Docs Author: ChatGPT
+// Docs Author: AI
 
 // Package proxy provides functionality for handling reverse proxy operations, including
 // load balancing, TLS configurations, and request routing.
@@ -173,8 +173,8 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 					}
 
 					fmt.Fprint(w, domainMetadata.DnsChallengeKey)
-					w.WriteHeader(200)
-					w.Write([]byte{})
+					// w.WriteHeader(200)
+					// w.Write([]byte{})
 					return
 				}
 

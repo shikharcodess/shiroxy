@@ -43,6 +43,7 @@ func TestStartShiroxyHandler(t *testing.T) {
 					HealthUrl: "/health",
 				},
 			},
+			HealthCheckTriggerDuration: 30,
 		},
 	}
 
