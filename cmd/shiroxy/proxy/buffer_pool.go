@@ -13,7 +13,7 @@ type SyncBufferPool struct {
 	size int
 }
 
-// // NewSyncBufferPool creates a new buffer pool with the given size
+// NewSyncBufferPool creates a new buffer pool with the given size
 func NewSyncBufferPool(size int) *SyncBufferPool {
 	if size <= 0 {
 		size = DefaultBufferSize
@@ -33,7 +33,9 @@ func NewSyncBufferPool(size int) *SyncBufferPool {
 // Get returns a buffer from the pool, or creates a new one if none are available
 func (p *SyncBufferPool) Get() []byte {
 	// Get buffer pointer from pool and dereference it
-	return *p.pool.Get().(*[]byte)
+	bufPtr := p.pool.Get().(*[]byte)
+	*bufPtr = (*bufPtr)[:0] // Reset length to 0, keep capacity
+	return *bufPtr
 }
 
 // Put returns a buffer to the pool
@@ -43,7 +45,7 @@ func (p *SyncBufferPool) Put(buf []byte) {
 		return
 	}
 
-	// Reset the buffer to use its full capacity but zero length
+	// Reset the buffer to use its full capacity
 	buf = buf[:cap(buf)]
 
 	// Return buffer pointer to the pool

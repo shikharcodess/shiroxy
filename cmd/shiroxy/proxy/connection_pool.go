@@ -54,6 +54,7 @@ func HTTP2ConnectionTracer(stats *ConnectionPoolStats, req *http.Request) *http.
 			stats.mu.Lock()
 			if info.Reused {
 				stats.ConnectionReuseCount++
+				stats.IdleConnections--
 			}
 			stats.mu.Unlock()
 		},
@@ -78,11 +79,14 @@ func (s *ConnectionPoolStats) RecordRequestCompletion(duration time.Duration) {
 	defer s.mu.Unlock()
 
 	s.TotalRequests++
-	// Simple moving average for request duration
+	// Exponential moving average for request duration (alpha = 0.1)
+	// This avoids overflow and gives more weight to recent requests
 	if s.AverageRequestDuration == 0 {
 		s.AverageRequestDuration = duration
 	} else {
-		s.AverageRequestDuration = (s.AverageRequestDuration*time.Duration(s.TotalRequests-1) + duration) / time.Duration(s.TotalRequests)
+		// EMA formula: EMA_new = alpha * value + (1 - alpha) * EMA_old
+		// Using alpha = 0.1 (10% weight to new value)
+		s.AverageRequestDuration = time.Duration(int64(float64(duration)*0.1 + float64(s.AverageRequestDuration)*0.9))
 	}
 	s.LastUpdated = time.Now()
 }
