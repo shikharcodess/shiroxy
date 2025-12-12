@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
@@ -213,6 +214,9 @@ type Shiroxy struct {
 	// If nil, http.DefaultTransport is used.
 	Transport http.RoundTripper
 
+	// ConnectionStats tracks HTTP/2 connection pool statistics
+	ConnectionStats *ConnectionPoolStats
+
 	// FlushInterval specifies the flush interval
 	// to flush to the client while copying the
 	// response body.
@@ -269,6 +273,19 @@ var hopHeaders = []string{
 	"Trailer", // not Trailers per URL above; https://www.rfc-editor.org/errata_search.php?eid=4522
 	"Transfer-Encoding",
 	"Upgrade",
+}
+
+// compressibleTypes lists content types that should be compressed with gzip.
+// This is defined at package level to avoid repeated allocations.
+var compressibleTypes = []string{
+	"text/",
+	"application/json",
+	"application/javascript",
+	"application/xml",
+	"application/x-javascript",
+	"application/xhtml+xml",
+	"application/rss+xml",
+	"application/atom+xml",
 }
 
 func (p *Shiroxy) DefaultErrorHandler(rw http.ResponseWriter, req *http.Request, err error) {
@@ -441,7 +458,21 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *ShiroxyRequest) error {
 	}
 	outreq = outreq.WithContext(httptrace.WithClientTrace(outreq.Context(), trace))
 
+	// Add HTTP/2 connection tracing if we have access to the connection stats
+	if p.ConnectionStats != nil {
+		outreq = HTTP2ConnectionTracer(p.ConnectionStats, outreq)
+	}
+
+	// Record the start time for calculating request duration
+	startTime := time.Now()
+
 	res, err := transport.RoundTrip(outreq)
+
+	// Record the request completion if we have access to the connection stats
+	if p.ConnectionStats != nil {
+		p.ConnectionStats.RecordRequestCompletion(time.Since(startTime))
+	}
+
 	if err != nil {
 		// p.getErrorHandler()(rw, outreq, err)
 		return err
@@ -475,16 +506,42 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *ShiroxyRequest) error {
 		rw.Header().Add("Trailer", strings.Join(trailerKeys, ", "))
 	}
 
-	rw.WriteHeader(res.StatusCode)
+	// Check if compression should be applied
+	var responseWriter http.ResponseWriter = rw
+	var gzipWriter *gzip.Writer
+	if p.shouldCompress(req.Request, res) {
+		// Remove Content-Length header before WriteHeader since compressed size will differ
+		rw.Header().Del("Content-Length")
+		// Set compression headers before WriteHeader
+		rw.Header().Set("Content-Encoding", "gzip")
+		rw.Header().Set("Vary", "Accept-Encoding")
 
-	err = p.copyResponse(rw, res.Body, p.flushInterval(res))
+		// Create gzip writer
+		gzipWriter = gzip.NewWriter(rw)
+		defer func() {
+			if closeErr := gzipWriter.Close(); closeErr != nil {
+				p.Logger.LogError(fmt.Sprintf("failed to close gzip writer: %v", closeErr), "Shiroxy", "Error")
+			}
+		}()
+
+		// Wrap with gzip response writer
+		gzw := &gzipResponseWriter{
+			ResponseWriter: rw,
+			Writer:         gzipWriter,
+		}
+		responseWriter = gzw
+	}
+
+	responseWriter.WriteHeader(res.StatusCode)
+
+	err = p.copyResponse(responseWriter, res.Body, p.flushInterval(res))
 	if err != nil {
 		defer res.Body.Close()
 		// Since we're streaming the response, if we run into an error all we can do
 		// is abort the request. Issue 23643: Shiroxy should use ErrAbortHandler
 		// on read error while copying body.
 		if !shouldPanicOnCopyError(req.Request) {
-			p.logf("suppressing panic for copyResponse error in test; copy error: %v", err)
+			p.Logger.LogError(fmt.Sprintf("suppressing panic for copyResponse error in test; copy error: %v", err), "Shiroxy", "Error")
 			return nil
 		}
 		panic(http.ErrAbortHandler)
@@ -608,7 +665,7 @@ func (p *Shiroxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, e
 	for {
 		nr, rerr := src.Read(buf)
 		if rerr != nil && rerr != io.EOF && rerr != context.Canceled {
-			p.logf("httputil: Shiroxy read error during body copy: %v", rerr)
+			p.Logger.LogError(fmt.Sprintf("httputil: Shiroxy read error during body copy: %v", rerr), "Shiroxy", "Error")
 		}
 		if nr > 0 {
 			nw, werr := dst.Write(buf[:nr])
@@ -631,11 +688,53 @@ func (p *Shiroxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int64, e
 	}
 }
 
-func (p *Shiroxy) logf(format string, args ...any) {
-	if p.ErrorLog != nil {
-		p.ErrorLog.Printf(format, args...)
-	} else {
-		log.Printf(format, args...)
+// shouldCompress determines if the response should be compressed based on
+// client capabilities and content type
+func (p *Shiroxy) shouldCompress(req *http.Request, res *http.Response) bool {
+	// Check if client accepts gzip
+	if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
+		return false
+	}
+
+	// Don't compress if already compressed
+	if res.Header.Get("Content-Encoding") != "" {
+		return false
+	}
+
+	// Check content type - only compress text-based content
+	contentType := res.Header.Get("Content-Type")
+	if contentType == "" {
+		return false
+	}
+
+	// Check against the package-level compressible types list
+	for _, compressible := range compressibleTypes {
+		if strings.HasPrefix(contentType, compressible) {
+			return true
+		}
+	}
+
+	return false
+}
+
+type gzipResponseWriter struct {
+	http.ResponseWriter
+	Writer io.Writer
+}
+
+func (w *gzipResponseWriter) Write(b []byte) (int, error) {
+	return w.Writer.Write(b)
+}
+
+// Flush implements http.Flusher interface
+func (w *gzipResponseWriter) Flush() {
+	// Flush the gzip writer first
+	if gw, ok := w.Writer.(*gzip.Writer); ok {
+		gw.Flush()
+	}
+	// Then flush the underlying response writer if it supports flushing
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
 	}
 }
 

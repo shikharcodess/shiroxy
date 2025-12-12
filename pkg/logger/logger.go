@@ -61,7 +61,7 @@ func (l *Logger) handleLog(content any, event string, packageName string, module
 	currentTime := time.Now()
 	formattedDateTime := currentTime.Format("02/01/2006 15:04:05")
 
-	formattedLog := "[" + formattedDateTime + "] [" + packageName + "] [" + moduleName + "] => " + content.(string)
+	formattedLog := fmt.Sprintf("[%s] [%s] [%s] => %v", formattedDateTime, packageName, moduleName, content)
 
 	if l.logConfig != nil {
 		if l.logConfig.Enable {
@@ -76,7 +76,7 @@ func (l *Logger) handleLog(content any, event string, packageName string, module
 			} else if event == "warning" {
 				YellowPrint(content)
 			} else {
-				fmt.Printf(content.(string))
+				fmt.Printf("%v", content)
 			}
 		}
 
@@ -108,14 +108,15 @@ func (l *Logger) handleLog(content any, event string, packageName string, module
 		BluePrint(" [" + packageName + "]")
 		BluePrint(" [" + moduleName + "]")
 		CyanPrint(" => ")
-		if event == "success" {
+		switch event {
+		case "success":
 			GreenPrint(content)
-		} else if event == "error" {
+		case "error":
 			RedPrint(content)
-		} else if event == "warning" {
+		case "warning":
 			YellowPrint(content)
-		} else {
-			fmt.Printf(content.(string))
+		default:
+			fmt.Printf("%v", content)
 		}
 	}
 

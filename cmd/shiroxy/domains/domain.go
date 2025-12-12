@@ -53,7 +53,7 @@ func InitializeStorage(storage *models.Storage, acmeServerUrl string, insecureSk
 		Storage:              storage,
 		DnsChallengeToken:    make(map[string]string),
 		ACME_SERVER_URL:      acmeServerUrl,
-		INSECURE_SKIP_VERIFY: true, // Defaults to true unless explicitly set to "no".
+		INSECURE_SKIP_VERIFY: true,
 	}
 
 	// Set INSECURE_SKIP_VERIFY based on input.
@@ -62,14 +62,15 @@ func InitializeStorage(storage *models.Storage, acmeServerUrl string, insecureSk
 	}
 
 	// Initialize storage based on the specified storage location (memory or Redis).
-	if storage.Location == "redis" {
+	switch storage.Location {
+	case "redis":
 		redisClient, err := storageSystem.ConnectRedis()
 		if err != nil {
 			return nil, err
 		}
 		storageSystem.RedisClient = redisClient
 		storageSystem.DomainMetadata = make(map[string]*DomainMetadata)
-	} else if storage.Location == "memory" {
+	case "memory":
 		memoryStorage, err := storageSystem.initiazeMemoryStorage()
 		if err != nil {
 			return nil, err
@@ -100,9 +101,10 @@ func (s *Storage) RegisterDomain(domainName, user_email string, metadata map[str
 	}
 
 	// Store the domain metadata in the appropriate storage (memory or Redis).
-	if s.Storage.Location == "memory" {
+	switch s.Storage.Location {
+	case "memory":
 		s.DomainMetadata[domainName] = domainMetadata
-	} else if s.Storage.Location == "redis" {
+	case "redis":
 		marshaledBody, err := proto.Marshal(domainMetadata)
 		if err != nil {
 			return "", err
@@ -137,14 +139,15 @@ func (s *Storage) UpdateDomain(domainName string, updateBody *DomainMetadata) er
 	}
 
 	// Update the metadata in the appropriate storage (memory or Redis).
-	if s.Storage.Location == "memory" {
+	switch s.Storage.Location {
+	case "memory":
 		oldData := s.DomainMetadata[domainName]
 		if oldData == nil {
 			return errors.New("no data found for domainName")
 		} else {
 			s.DomainMetadata[domainName] = updateBody
 		}
-	} else if s.Storage.Location == "redis" {
+	case "redis":
 		ctx := context.Background()
 		result := s.RedisClient.Get(ctx, domainName)
 		if result.Err() != nil {
@@ -183,14 +186,15 @@ func (s *Storage) RemoveDomain(domainName string) error {
 	}
 
 	// Remove domain metadata from memory or Redis.
-	if s.Storage.Location == "memory" {
+	switch s.Storage.Location {
+	case "memory":
 		oldData := s.DomainMetadata[domainName]
 		if oldData == nil {
 			return errors.New("no data found for domainName")
 		} else {
 			delete(s.DomainMetadata, domainName)
 		}
-	} else if s.Storage.Location == "redis" {
+	case "redis":
 		ctx := context.Background()
 		result := s.RedisClient.Get(ctx, domainName)
 		if result.Err() != nil {
