@@ -54,7 +54,10 @@ func HTTP2ConnectionTracer(stats *ConnectionPoolStats, req *http.Request) *http.
 			stats.mu.Lock()
 			if info.Reused {
 				stats.ConnectionReuseCount++
-				stats.IdleConnections--
+				// Only decrement if we have idle connections to prevent negative values
+				if stats.IdleConnections > 0 {
+					stats.IdleConnections--
+				}
 			}
 			stats.mu.Unlock()
 		},

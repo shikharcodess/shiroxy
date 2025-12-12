@@ -493,9 +493,26 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *ShiroxyRequest) error {
 		rw.Header().Add("Trailer", strings.Join(trailerKeys, ", "))
 	}
 
+	// Check if compression should be applied
+	var responseWriter http.ResponseWriter = rw
+	if p.shouldCompress(req.Request, res) {
+		// Wrap the response writer with compression
+		gz := gzip.NewWriter(rw)
+		defer gz.Close()
+		gzw := &gzipResponseWriter{
+			ResponseWriter: rw,
+			Writer:         gz,
+		}
+		responseWriter = gzw
+		// Set compression headers before writing status
+		rw.Header().Set("Content-Encoding", "gzip")
+		rw.Header().Set("Vary", "Accept-Encoding")
+		rw.Header().Del("Content-Length") // Remove Content-Length as it will be wrong after compression
+	}
+
 	rw.WriteHeader(res.StatusCode)
 
-	err = p.copyResponse(rw, res.Body, p.flushInterval(res))
+	err = p.copyResponse(responseWriter, res.Body, p.flushInterval(res))
 	if err != nil {
 		defer res.Body.Close()
 		// Since we're streaming the response, if we run into an error all we can do
@@ -657,25 +674,44 @@ func (p *Shiroxy) logf(format string, args ...any) {
 	}
 }
 
-func (p *Shiroxy) compressHandler(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Check if client accepts gzip
-		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			h.ServeHTTP(w, r)
-			return
-		}
+// shouldCompress determines if the response should be compressed based on
+// client capabilities and content type
+func (p *Shiroxy) shouldCompress(req *http.Request, res *http.Response) bool {
+	// Check if client accepts gzip
+	if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
+		return false
+	}
 
-		// Create gzip writer
-		gz := gzip.NewWriter(w)
-		defer gz.Close()
+	// Don't compress if already compressed
+	if res.Header.Get("Content-Encoding") != "" {
+		return false
+	}
 
-		// Create gzip response writer
-		gzw := &gzipResponseWriter{
-			ResponseWriter: w,
-			Writer:         gz,
+	// Check content type - only compress text-based content
+	contentType := res.Header.Get("Content-Type")
+	if contentType == "" {
+		return false
+	}
+
+	// List of compressible content types
+	compressibleTypes := []string{
+		"text/",
+		"application/json",
+		"application/javascript",
+		"application/xml",
+		"application/x-javascript",
+		"application/xhtml+xml",
+		"application/rss+xml",
+		"application/atom+xml",
+	}
+
+	for _, compressible := range compressibleTypes {
+		if strings.HasPrefix(contentType, compressible) {
+			return true
 		}
-		h.ServeHTTP(gzw, r)
-	})
+	}
+
+	return false
 }
 
 type gzipResponseWriter struct {

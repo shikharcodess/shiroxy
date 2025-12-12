@@ -23,8 +23,9 @@ func NewSyncBufferPool(size int) *SyncBufferPool {
 		size: size,
 		pool: sync.Pool{
 			New: func() interface{} {
+				// Return the slice directly, not a pointer
 				buf := make([]byte, size)
-				return &buf
+				return buf
 			},
 		},
 	}
@@ -32,10 +33,10 @@ func NewSyncBufferPool(size int) *SyncBufferPool {
 
 // Get returns a buffer from the pool, or creates a new one if none are available
 func (p *SyncBufferPool) Get() []byte {
-	// Get buffer pointer from pool and dereference it
-	bufPtr := p.pool.Get().(*[]byte)
-	*bufPtr = (*bufPtr)[:0] // Reset length to 0, keep capacity
-	return *bufPtr
+	// Get buffer from pool (it's a []byte, not a pointer)
+	buf := p.pool.Get().([]byte)
+	// Reset length to 0, keep capacity
+	return buf[:0]
 }
 
 // Put returns a buffer to the pool
@@ -48,6 +49,6 @@ func (p *SyncBufferPool) Put(buf []byte) {
 	// Reset the buffer to use its full capacity
 	buf = buf[:cap(buf)]
 
-	// Return buffer pointer to the pool
-	p.pool.Put(&buf)
+	// Return the slice directly to the pool
+	p.pool.Put(buf)
 }

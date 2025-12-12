@@ -180,9 +180,16 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 				if (configuration.Frontend.HttpToHttps) && r.URL.Port() == "80" && r.TLS == nil {
 					secureFrontend := loadbalancer.Frontends["443"]
 					if secureFrontend != nil {
+						// Strip port from host for HTTPS redirect
+						// r.Host may be "example.com:80", we need just "example.com" for HTTPS
+						host := r.Host
+						if h, _, err := net.SplitHostPort(r.Host); err == nil {
+							host = h // Use hostname without port
+						}
+
 						redirectUrl := url.URL{
 							Scheme:   "https",
-							Host:     r.Host,
+							Host:     host,
 							Path:     r.URL.Path,
 							RawQuery: r.URL.RawQuery,
 						}
