@@ -20,18 +20,23 @@ docker compose up -d --build
 
 ## Key Features
 
-- **Automatic SSL Certificates**: Secure your domains effortlessly.
-- **Custom Traffic Routing**: Tailor routing logic to fit your needs.
+- **Automatic SSL Certificates**: Secure your domains effortlessly with ACME protocol integration.
+- **HTTP/2 Support**: Optimized HTTP/2 transport with connection pooling and multiplexing.
+- **Intelligent Compression**: Automatic gzip compression for text-based content types.
+- **Advanced Load Balancing**: Multiple strategies including round-robin, least-connection, and sticky-session.
+- **Custom Traffic Routing**: Tailor routing logic with tag-based routing and caching.
 - **Dynamic Domain Management**: Manage domains flexibly via REST API.
-- **System and Process Analytics**: Gain valuable insights with detailed analytics.
+- **Performance Optimized**: Buffer pooling and connection reuse to minimize latency and resource usage.
+- **System and Process Analytics**: Real-time monitoring of connections, request duration, and server health.
+- **Graceful Shutdown**: Data persistence and clean shutdown with no request loss.
 
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
 
-- Go 1.15+
-- Docker
-- Pebble (for local SSL testing)
+- Go 1.22+ (for latest HTTP/2 and performance features)
+- Docker (optional, for containerized deployment)
+- Pebble (for local SSL testing in development)
 
 ## Installation
 
@@ -66,6 +71,21 @@ git clone https://github.com/shikharcodess/shiroxy.git
 cd shiroxy
 docker compose up -d --build
 ```
+
+## What's New in v1.1.0 (Kuchii Release)
+
+🚀 **Performance & Reliability Enhancements:**
+
+- **HTTP/2 Support**: Full HTTP/2 implementation with connection pooling and multiplexing
+- **Smart Compression**: Automatic gzip compression for compressible content (text, JSON, XML, etc.)
+- **Buffer Pooling**: Efficient memory reuse with 32KB buffer pools to reduce GC pressure
+- **Connection Statistics**: Real-time monitoring of connection pools, reuse rates, and request duration
+- **Bug Fixes**:
+  - Fixed buffer pool pointer issues preventing memory corruption
+  - Corrected idle connection counter to prevent negative values
+  - Fixed HTTP to HTTPS redirect URLs (removed port numbers)
+  - Improved HTTP status codes (503 for inactive domains instead of 404)
+  - Optimized header management for gzip compression
 
 ## Documentation
 

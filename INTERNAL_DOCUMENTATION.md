@@ -1,8 +1,8 @@
 # Shiroxy - Internal Documentation
 
-**Version:** 1.0.0  
+**Version:** 1.1.0 (Kuchii Release)  
 **Author:** @ShikharY10  
-**Last Updated:** November 18, 2025
+**Last Updated:** December 12, 2025
 
 ---
 
@@ -24,13 +24,17 @@
 Shiroxy is a **Go-based reverse proxy** designed for dynamic routing, SSL automation, and scalable domain management. It provides:
 
 - **Automatic SSL Certificates** via ACME protocol (Let's Encrypt, Pebble)
+- **HTTP/2 Support** with optimized connection pooling and multiplexing
+- **Intelligent Gzip Compression** for text-based content types with automatic client detection
 - **Dynamic Domain Management** through REST API
 - **Advanced Load Balancing** with multiple strategies (round-robin, least-connection, sticky-session)
 - **Tag-based Routing** with caching and trie-based indexing
-- **Health Monitoring** for backend servers
+- **Buffer Pool Management** using sync.Pool for efficient memory reuse (32KB buffers)
+- **Connection Pool Statistics** tracking active/idle connections, reuse rates, and request duration
+- **Health Monitoring** for backend servers with configurable intervals
 - **System Analytics** with CPU, memory, and connection tracking
 - **Webhook Integration** for event notifications
-- **Graceful Shutdown** with data persistence
+- **Graceful Shutdown** with data persistence and proper resource cleanup
 
 ---
 
@@ -242,59 +246,87 @@ The proxy module is the heart of Shiroxy, handling all reverse proxy operations.
 
 - **`Shiroxy` struct**
   - Custom reverse proxy with enhanced features
-  - Logger integration
-  - Connection pool statistics
-  - Buffer pooling for efficiency
-  - Compression support (gzip)
-  - HTTP/2 upgrade handling
-  - WebSocket support
+  - Logger integration with structured error logging
+  - Connection pool statistics for HTTP/2 monitoring
+  - Buffer pooling for efficient memory reuse
+  - Intelligent gzip compression with content-type detection
+  - HTTP/2 upgrade handling and multiplexing
+  - WebSocket support with bidirectional streaming
 
 **Request Processing:**
 
 1. **Header Manipulation**
-   - Remove hop-by-hop headers (Connection, Proxy-Authorization, etc.)
-   - Add X-Forwarded-\* headers (For, Host, Proto)
-   - Handle Upgrade requests (WebSocket, HTTP/2)
+
+   - Remove hop-by-hop headers (Connection, Proxy-Authorization, Transfer-Encoding, etc.)
+   - Add X-Forwarded-\* headers (For, Host, Proto) for origin tracking
+   - Handle Upgrade requests (WebSocket, HTTP/2 with proper protocol switching)
+   - Strip port from HTTP to HTTPS redirects for correct URL formatting
+
 2. **Director Function**
 
    - Rewrites request URL to backend server
    - Preserves or modifies Host header
-   - Merges query parameters
+   - Merges query parameters with proper escaping
+   - Cleans query parameters to prevent injection
 
 3. **Response Handling**
 
    - Streams response with configurable flush intervals
    - Handles 1xx informational responses
-   - Supports trailers
-   - Gzip compression for supported clients
+   - Supports HTTP trailers for chunked encoding
+   - **Intelligent Gzip Compression:**
+     - Checks client Accept-Encoding header for gzip support
+     - Verifies response is not already compressed
+     - Only compresses compressible content types:
+       - text/\* (HTML, CSS, plain text)
+       - application/json, application/javascript
+       - application/xml and variants (XHTML, RSS, Atom)
+     - Sets proper headers before WriteHeader:
+       - Content-Encoding: gzip
+       - Vary: Accept-Encoding
+       - Removes Content-Length (varies with compression)
+     - Implements http.Flusher for streaming compressed responses
+     - Proper cleanup with deferred gzip writer close and error logging
 
 4. **Error Handling**
-   - Custom `ErrorHandler` callback
-   - Default: 502 Bad Gateway
-   - Logs errors via Logger
+   - Custom `ErrorHandler` callback with context
+   - Default: 502 Bad Gateway with detailed logging
+   - Proper HTTP status codes (503 for inactive domains, not 404)
+   - Graceful panic recovery with http.ErrAbortHandler
+   - Logs errors via Logger with severity levels
 
 **Buffer Pool (`buffer_pool.go`):**
 
-- Reuses byte slices to reduce GC pressure
-- Default size: 32KB
-- Uses `sync.Pool` for efficient allocation
-- Auto-expands/contracts based on load
+- **Fixed Implementation:** Stores `[]byte` directly (not pointers) to prevent invalid memory references
+- Reuses byte slices to reduce GC pressure and allocation overhead
+- Default size: 32KB (optimal for most HTTP responses)
+- Uses `sync.Pool` for efficient, concurrent-safe allocation
+- Returns buffers with zero length but full capacity for reuse
+- Validates buffer capacity before returning to pool
+- Auto-expands/contracts based on load patterns
 
 **Connection Pool (`connection_pool.go`):**
 
-- Tracks HTTP/2 connection statistics:
-  - Active connections
-  - Idle connections
-  - Connections created/closed
-  - Connection reuse count
-  - Average request duration
-- Uses `httptrace.ClientTrace` for monitoring
+- **HTTP/2 Connection Statistics Tracking:**
+  - Active connections (currently in use)
+  - Idle connections (available for reuse)
+  - Total connections created over lifetime
+  - Total connections closed
+  - Connection reuse count (efficiency metric)
+  - Average request duration (exponential moving average)
+  - Last updated timestamp
+- **Fixed IdleConnections Counter:** Guards against negative values with proper locking
+- Uses `httptrace.ClientTrace` for real-time monitoring
+- Thread-safe with RWMutex for concurrent access
+- Exponential Moving Average (EMA) for request duration calculation
+- Provides read-only stats snapshots via `GetStats()`
 
 **Special Handlers:**
 
-- **`handleUpgradeResponse`**: WebSocket/HTTP2 upgrade
-- **`maxLatencyWriter`**: Automatic flushing for streaming
-- **`gzipResponseWriter`**: On-the-fly compression
+- **`handleUpgradeResponse`**: WebSocket/HTTP2 upgrade with proper connection hijacking
+- **`maxLatencyWriter`**: Automatic flushing for streaming responses
+- **`gzipResponseWriter`**: On-the-fly compression with flush support
+- **`shouldCompress`**: Content-type based compression decision logic
 
 #### **2.4 Health Checker (`health_check.go`)**
 
@@ -1536,18 +1568,138 @@ default:
 
 ---
 
+## Version 1.1.0 (Kuchii Release) - Changelog
+
+### New Features
+
+#### 1. **HTTP/2 Support**
+
+- Full HTTP/2 transport implementation with `ForceAttemptHTTP2: true`
+- Connection pooling with configurable limits:
+  - MaxIdleConns: 300
+  - MaxIdleConnsPerHost: 100
+  - MaxConnsPerHost: 200
+  - IdleConnTimeout: 120s
+- HTTP/2 connection statistics tracking via `httptrace.ClientTrace`
+- Real-time monitoring of connection reuse and multiplexing efficiency
+
+#### 2. **Intelligent Gzip Compression**
+
+- Automatic content-type detection for compression eligibility
+- Supports: text/\*, application/json, application/javascript, application/xml, and variants
+- Client capability detection via Accept-Encoding header
+- Proper header management (Content-Encoding, Vary, Content-Length removal)
+- Streaming compression with http.Flusher interface support
+- Resource cleanup with deferred gzip writer close
+
+#### 3. **Buffer Pool Management**
+
+- Efficient memory reuse using sync.Pool
+- 32KB default buffer size optimized for HTTP responses
+- Direct slice storage (not pointers) for memory safety
+- Automatic buffer validation and capacity management
+- Reduces GC pressure and allocation overhead
+
+#### 4. **Connection Pool Statistics**
+
+- Track active and idle HTTP/2 connections
+- Monitor connection creation, closure, and reuse rates
+- Calculate average request duration using Exponential Moving Average (EMA)
+- Thread-safe statistics with RWMutex
+- Real-time metrics for performance monitoring
+
+### Bug Fixes
+
+#### 1. **Buffer Pool Pointer Issue**
+
+- **Problem:** Creating pointers to local variables caused invalid memory references
+- **Fix:** Store `[]byte` directly in sync.Pool instead of `*[]byte`
+- **Impact:** Prevents crashes and memory corruption
+
+#### 2. **IdleConnections Counter**
+
+- **Problem:** Counter could go negative when connections reused before being marked idle
+- **Fix:** Added guard condition `if stats.IdleConnections > 0` before decrement
+- **Impact:** Accurate connection pool statistics
+
+#### 3. **HTTP to HTTPS Redirect URL**
+
+- **Problem:** Port number included in redirect (e.g., `https://example.com:80`)
+- **Fix:** Use `net.SplitHostPort()` to extract hostname without port
+- **Impact:** Correct redirect URLs for HTTPS
+
+#### 4. **Gzip Header Timing**
+
+- **Problem:** Headers set after WriteHeader() call, preventing proper compression
+- **Fix:** Set all compression headers before calling WriteHeader()
+- **Impact:** Compression actually works with proper HTTP headers
+
+#### 5. **HTTP Status Codes**
+
+- **Problem:** Inactive domains returned 404 (Not Found)
+- **Fix:** Changed to 503 (Service Unavailable) for correct HTTP semantics
+- **Impact:** Proper status code semantics for monitoring and caching
+
+#### 6. **Duplicate Header Setting**
+
+- **Problem:** Gzip headers set multiple times in different places
+- **Fix:** Consolidated header setting to single location before WriteHeader
+- **Impact:** Cleaner code and no duplicate headers
+
+### Performance Improvements
+
+#### 1. **Compressible Types Optimization**
+
+- **Change:** Moved from function-local to package-level variable
+- **Impact:** Eliminates repeated slice allocations on every request
+- **Benefit:** Reduced memory allocations and GC pressure
+
+#### 2. **Gzip Writer Resource Management**
+
+- **Change:** Proper deferred cleanup with error logging
+- **Impact:** No resource leaks even during panics
+- **Benefit:** Better stability under error conditions
+
+#### 3. **Response Writer Simplification**
+
+- **Change:** Removed complex lazy initialization pattern
+- **Impact:** Simpler, more predictable code flow
+- **Benefit:** Easier debugging and maintenance
+
+### Code Quality Improvements
+
+- Enhanced error logging with context and severity levels
+- Improved code documentation and inline comments
+- Better separation of concerns in gzip handling
+- Thread-safety improvements with proper mutex usage
+- Consistent error handling patterns throughout
+
+### Testing & Validation
+
+All changes have been validated for:
+
+- Memory safety (no invalid pointers)
+- Thread safety (proper locking mechanisms)
+- HTTP specification compliance
+- Resource cleanup (no leaks)
+- Performance under load
+
+---
+
 ## Appendix
 
 ### File Size Summary
 
-**Total Lines of Code:** ~6,000+ lines
+**Total Lines of Code:** ~7,000+ lines (proxy module: 3,606 lines)
 
 **Largest Files:**
 
-- `cmd/shiroxy/proxy/reverse_proxy.go`: 864 lines
-- `cmd/shiroxy/proxy/balancer.go`: 578 lines
-- `cmd/shiroxy/domains/domain.go`: 459 lines
-- `cmd/shiroxy/proxy/proxy_handler.go`: 435 lines
+- `cmd/shiroxy/proxy/reverse_proxy.go`: 913 lines (updated with compression)
+- `cmd/shiroxy/proxy/balancer.go`: 577 lines
+- `cmd/shiroxy/domains/domain.go`: 458 lines
+- `cmd/shiroxy/proxy/proxy_handler.go`: 439 lines
+- `cmd/shiroxy/proxy/buffer_pool.go`: 55 lines (new)
+- `cmd/shiroxy/proxy/connection_pool.go`: 114 lines (new)
 
 ### Dependency Graph
 
