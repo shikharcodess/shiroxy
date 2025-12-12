@@ -173,8 +173,6 @@ func StartShiroxyHandler(configuration *models.Config, storage *domains.Storage,
 					}
 
 					fmt.Fprint(w, domainMetadata.DnsChallengeKey)
-					// w.WriteHeader(200)
-					// w.Write([]byte{})
 					return
 				}
 

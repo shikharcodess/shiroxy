@@ -76,7 +76,7 @@ func (l *Logger) handleLog(content any, event string, packageName string, module
 			} else if event == "warning" {
 				YellowPrint(content)
 			} else {
-				fmt.Printf(content.(string))
+				fmt.Printf("%v", content)
 			}
 		}
 
@@ -116,7 +116,7 @@ func (l *Logger) handleLog(content any, event string, packageName string, module
 		case "warning":
 			YellowPrint(content)
 		default:
-			fmt.Printf("%s", content.(string))
+			fmt.Printf("%v", content)
 		}
 	}
 

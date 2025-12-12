@@ -665,27 +665,45 @@ func (p *Shiroxy) compressHandler(h http.Handler) http.Handler {
 			return
 		}
 
-		// Set appropriate headers
-		w.Header().Set("Content-Encoding", "gzip")
-		w.Header().Set("Vary", "Accept-Encoding")
-
 		// Create gzip writer
 		gz := gzip.NewWriter(w)
 		defer gz.Close()
 
 		// Create gzip response writer
-		gzw := gzipResponseWriter{Writer: gz, ResponseWriter: w}
+		gzw := &gzipResponseWriter{
+			ResponseWriter: w,
+			Writer:         gz,
+		}
 		h.ServeHTTP(gzw, r)
 	})
 }
 
 type gzipResponseWriter struct {
-	io.Writer
 	http.ResponseWriter
+	io.Writer
+	wroteHeader bool
 }
 
-func (gzw gzipResponseWriter) Write(b []byte) (int, error) {
-	return gzw.Writer.Write(b)
+func (w *gzipResponseWriter) WriteHeader(statusCode int) {
+	if w.wroteHeader {
+		return
+	}
+	w.wroteHeader = true
+	// Set gzip headers
+	header := w.ResponseWriter.Header()
+	header.Set("Content-Encoding", "gzip")
+	header.Set("Vary", "Accept-Encoding")
+	// Remove Content-Length, since it will be wrong for gzipped content
+	header.Del("Content-Length")
+	w.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (w *gzipResponseWriter) Write(b []byte) (int, error) {
+	if !w.wroteHeader {
+		// If WriteHeader hasn't been called yet, call it with 200
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.Writer.Write(b)
 }
 
 type maxLatencyWriter struct {
