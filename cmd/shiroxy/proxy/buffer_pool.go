@@ -34,7 +34,8 @@ func NewSyncBufferPool(size int) *SyncBufferPool {
 func (p *SyncBufferPool) Get() []byte {
 	// Get buffer pointer from pool and dereference it
 	bufPtr := p.pool.Get().(*[]byte)
-	return (*bufPtr)[:0] // Reset length to 0, keep capacity
+	*bufPtr = (*bufPtr)[:0] // Reset length to 0, keep capacity
+	return *bufPtr
 }
 
 // Put returns a buffer to the pool

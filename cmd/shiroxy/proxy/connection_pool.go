@@ -41,12 +41,12 @@ func HTTP2ConnectionTracer(stats *ConnectionPoolStats, req *http.Request) *http.
 
 		// Track when a connection is closed
 		ConnectDone: func(network, addr string, err error) {
-			stats.mu.Lock()
 			if err != nil {
+				stats.mu.Lock()
 				stats.ConnectionsClosed++
 				stats.ActiveConnections--
+				stats.mu.Unlock()
 			}
-			stats.mu.Unlock()
 		},
 
 		// Track when a connection is reused (important for connection pooling)

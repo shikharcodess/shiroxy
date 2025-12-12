@@ -679,8 +679,8 @@ func (p *Shiroxy) compressHandler(h http.Handler) http.Handler {
 }
 
 type gzipResponseWriter struct {
-	http.ResponseWriter
 	io.Writer
+	http.ResponseWriter
 	wroteHeader bool
 }
 
