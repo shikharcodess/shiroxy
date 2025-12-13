@@ -16,3 +16,9 @@ temp/requirement.md
 temp/set.js
 test/k6/k6
 temp/webhook_handler
+docs/TEST_COVERAGE_PLAN.md
+docs/TEST_COVERAGE_SUMMARY.md
+docs/QUICK_TEST_GUIDE.md
+coverage.txt
+TESTING_GUIDE.md
+cleanup.txt
