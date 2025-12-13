@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/github/shikharcodess/shiroxy/graph/badge.svg?token=6bVHb5fRuz)](https://codecov.io/github/shikharcodess/shiroxy)
+
 <div align="center">
 
 <img src="https://raw.githubusercontent.com/shikharcodess/shiroxy/main/media/shiroxy_logo_.png" alt="shiroxy Logo">
