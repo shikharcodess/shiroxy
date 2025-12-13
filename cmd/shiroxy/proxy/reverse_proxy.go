@@ -334,7 +334,8 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *ShiroxyRequest) error {
 		// means it is either context.Background, or a custom
 		// a Context implementation with no cancellation signal),
 		// then consult the CloseNotifier if available.
-	} else if cn, ok := rw.(http.CloseNotifier); ok { //nolint:staticcheck // CloseNotifier is deprecated but required for backwards compatibility
+		//lint:ignore SA1019 CloseNotifier is deprecated but required for backwards compatibility
+	} else if cn, ok := rw.(http.CloseNotifier); ok {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
 		defer cancel()
