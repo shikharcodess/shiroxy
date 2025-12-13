@@ -50,5 +50,6 @@ func (p *SyncBufferPool) Put(buf []byte) {
 	buf = buf[:cap(buf)]
 
 	// Return the slice directly to the pool
-	p.pool.Put(buf) //nolint:staticcheck // sync.Pool accepts interface{}, passing slice directly is correct
+	//lint:ignore SA6002 sync.Pool accepts interface{}, passing slice directly is correct
+	p.pool.Put(buf)
 }
