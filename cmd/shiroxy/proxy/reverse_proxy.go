@@ -332,9 +332,9 @@ func (p *Shiroxy) ServeHTTP(rw http.ResponseWriter, req *ShiroxyRequest) error {
 		//
 		// If the request Context has a nil Done channel (which
 		// means it is either context.Background, or a custom
-		// Context implementation with no cancellation signal),
+		// a Context implementation with no cancellation signal),
 		// then consult the CloseNotifier if available.
-	} else if cn, ok := rw.(http.CloseNotifier); ok {
+	} else if cn, ok := rw.(http.CloseNotifier); ok { //nolint:staticcheck // CloseNotifier is deprecated but required for backwards compatibility
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
 		defer cancel()

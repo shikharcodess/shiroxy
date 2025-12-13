@@ -20,7 +20,6 @@ func GetDNSChallengeSolver(storage *domains.Storage) *DNSChallengeSolver {
 }
 
 type DNSChallengeSolver struct {
-	challenges    map[string]string
 	domainStorage *domains.Storage
 }
 
