@@ -1,0 +1,438 @@
+name: Shiroxy CI - Tests and Coverage
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+jobs:
+    unit-tests:
+        name: Unit Tests and Coverage
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 2
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "1.22"
+                  cache: true
+
+            - name: Install dependencies
+              run: go mod download
+
+            - name: Run unit tests with coverage
+              run: |
+                  go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+            - name: Upload coverage to Codecov
+              uses: codecov/codecov-action@v5
+              with:
+                  token: ${{ secrets.CODECOV_TOKEN }}
+                  files: ./coverage.txt
+                  flags: unittests
+                  name: codecov-umbrella
+                  fail_ci_if_error: false
+
+    integration-tests:
+        name: Integration Tests
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout Shiroxy code
+              uses: actions/checkout@v4
+              with:
+                  path: shiroxy
+
+            - name: Checkout test backend code
+              uses: actions/checkout@v4
+              with:
+                  repository: shikharcodess/shiroxy-dummy
+                  path: shiroxy-dummy
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "1.22"
+                  cache: true
+                  cache-dependency-path: shiroxy/go.sum
+
+            - name: Install test dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y jq curl netcat-openbsd
+
+            - name: Build and start test backend containers
+              run: |
+                  cd shiroxy-dummy
+
+                  # Build the Docker image for test backends
+                  docker build -t shiroxy-test-backend .
+
+                  # Start 3 backend instances on different ports
+                  docker run -d --name backend-1 -p 8001:8000 \
+                    -e PORT=8000 \
+                    -e SERVER_NAME=backend-1 \
+                    shiroxy-test-backend
+
+                  docker run -d --name backend-2 -p 8002:8000 \
+                    -e PORT=8000 \
+                    -e SERVER_NAME=backend-2 \
+                    shiroxy-test-backend
+
+                  docker run -d --name backend-3 -p 8003:8000 \
+                    -e PORT=8000 \
+                    -e SERVER_NAME=backend-3 \
+                    shiroxy-test-backend
+
+                  cd ..
+
+            - name: Wait for backend services to be ready
+              run: |
+                  echo "Waiting for backend services to start..."
+
+                  # Wait for backend-1
+                  backend1_ready=false
+                  for i in {1..30}; do
+                    if curl -sf http://localhost:8001/health > /dev/null; then
+                      echo "✓ Backend-1 is ready"
+                      backend1_ready=true
+                      break
+                    fi
+                    echo "Waiting for backend-1... ($i/30)"
+                    sleep 2
+                  done
+                  if [ "$backend1_ready" = "false" ]; then
+                    echo "ERROR: Backend-1 failed to start after 60 seconds"
+                    docker logs backend-1
+                    exit 1
+                  fi
+
+                  # Wait for backend-2
+                  backend2_ready=false
+                  for i in {1..30}; do
+                    if curl -sf http://localhost:8002/health > /dev/null; then
+                      echo "✓ Backend-2 is ready"
+                      backend2_ready=true
+                      break
+                    fi
+                    echo "Waiting for backend-2... ($i/30)"
+                    sleep 2
+                  done
+                  if [ "$backend2_ready" = "false" ]; then
+                    echo "ERROR: Backend-2 failed to start after 60 seconds"
+                    docker logs backend-2
+                    exit 1
+                  fi
+
+                  # Wait for backend-3
+                  backend3_ready=false
+                  for i in {1..30}; do
+                    if curl -sf http://localhost:8003/health > /dev/null; then
+                      echo "✓ Backend-3 is ready"
+                      backend3_ready=true
+                      break
+                    fi
+                    echo "Waiting for backend-3... ($i/30)"
+                    sleep 2
+                  done
+                  if [ "$backend3_ready" = "false" ]; then
+                    echo "ERROR: Backend-3 failed to start after 60 seconds"
+                    docker logs backend-3
+                    exit 1
+                  fi
+
+                  echo "All backends are ready!"
+
+            - name: Install Shiroxy dependencies
+              run: |
+                  cd shiroxy
+                  go mod download
+
+            - name: Start Shiroxy proxy
+              run: |
+                  cd shiroxy
+
+                  # Start Shiroxy in background with local config
+                  sudo go run cmd/shiroxy/main.go -c defaults/shiroxy.conf.local.yaml > shiroxy.log 2>&1 &
+                  echo $! > shiroxy.pid
+
+                  # Wait for Shiroxy to be ready
+                  echo "Waiting for Shiroxy to start..."
+                  sleep 10
+
+                  # Check if Shiroxy is running
+                  if ! ps -p $(cat shiroxy.pid) > /dev/null; then
+                    echo "Shiroxy failed to start"
+                    echo "=== Shiroxy logs ==="
+                    cat shiroxy.log
+                    exit 1
+                  fi
+
+                  echo "✓ Shiroxy is running (PID: $(cat shiroxy.pid))"
+
+            - name: Verify Shiroxy connectivity
+              run: |
+                  cd shiroxy
+
+                  # Test if port 80 is listening
+                  if ! nc -z localhost 80; then
+                    echo "Port 80 is not listening"
+                    echo "=== Shiroxy logs ==="
+                    cat shiroxy.log
+                    exit 1
+                  fi
+
+                  echo "✓ Shiroxy is listening on port 80"
+
+            - name: Run integration tests
+              run: |
+                  cd shiroxy
+
+                  # Make test script executable
+                  chmod +x test/test_backend_fixed.sh
+
+                  # Run tests and capture exit code
+                  cd test
+                  set +e  # Don't exit on error immediately
+                  BASE_URL="http://localhost:80" ./test_backend_fixed.sh | tee test_results.log
+                  test_exit_code=$?
+                  set -e  # Re-enable exit on error
+
+                  # Check test results
+                  if [ $test_exit_code -ne 0 ]; then
+                    echo "Tests failed with exit code: $test_exit_code"
+                    exit 1
+                  fi
+
+                  echo "✓ All integration tests passed"
+
+            - name: Upload test results
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: integration-test-results
+                  path: |
+                      shiroxy/test/test_results.log
+                      shiroxy/shiroxy.log
+
+            - name: Display Shiroxy logs on failure
+              if: failure()
+              run: |
+                  echo "=== Shiroxy logs ==="
+                  cat shiroxy/shiroxy.log || echo "No logs found"
+
+                  echo ""
+                  echo "=== Backend-1 logs ==="
+                  docker logs backend-1 || echo "No logs found"
+
+                  echo ""
+                  echo "=== Backend-2 logs ==="
+                  docker logs backend-2 || echo "No logs found"
+
+                  echo ""
+                  echo "=== Backend-3 logs ==="
+                  docker logs backend-3 || echo "No logs found"
+
+            - name: Cleanup
+              if: always()
+              run: |
+                  # Kill Shiroxy
+                  if [ -f shiroxy/shiroxy.pid ]; then
+                    sudo kill $(cat shiroxy/shiroxy.pid) || true
+                    rm shiroxy/shiroxy.pid
+                  fi
+
+                  # Stop and remove backend containers
+                  docker stop backend-1 backend-2 backend-3 || true
+                  docker rm backend-1 backend-2 backend-3 || true
+
+    feature-tests:
+        name: Feature Tests
+        runs-on: ubuntu-latest
+
+        strategy:
+            matrix:
+                feature:
+                    - http2-connection-pooling
+                    - gzip-compression
+                    - load-balancing
+                    - health-checks
+                    - buffer-pool
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "1.22"
+
+            - name: Install test dependencies
+              run: |
+                  go mod download
+                  sudo apt-get update
+                  sudo apt-get install -y curl jq
+
+            - name: Run ${{ matrix.feature }} tests
+              run: |
+                  case "${{ matrix.feature }}" in
+                    http2-connection-pooling)
+                      echo "Testing HTTP/2 connection pooling..."
+                      go test -v -run TestHTTP2 ./cmd/shiroxy/proxy/
+                      ;;
+                    gzip-compression)
+                      echo "Testing gzip compression..."
+                      go test -v -run TestGzip ./cmd/shiroxy/proxy/
+                      ;;
+                    load-balancing)
+                      echo "Testing load balancing..."
+                      go test -v -run TestBalancer ./cmd/shiroxy/proxy/
+                      ;;
+                    health-checks)
+                      echo "Testing health checks..."
+                      go test -v -run TestHealthCheck ./cmd/shiroxy/proxy/
+                      ;;
+                    buffer-pool)
+                      echo "Testing buffer pool..."
+                      go test -v -run TestBufferPool ./cmd/shiroxy/proxy/
+                      ;;
+                  esac
+
+    benchmark-tests:
+        name: Performance Benchmarks
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "1.22"
+
+            - name: Install dependencies
+              run: go mod download
+
+            - name: Run benchmarks
+              run: |
+                  go test -bench=. -benchmem -benchtime=10s ./cmd/shiroxy/proxy/ > benchmark.txt
+                  cat benchmark.txt
+
+            - name: Upload benchmark results
+              uses: actions/upload-artifact@v4
+              with:
+                  name: benchmark-results
+                  path: benchmark.txt
+
+    security-tests:
+        name: Security and Linting
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "1.22"
+
+            - name: Run go vet
+              run: go vet ./...
+
+            - name: Run staticcheck
+              uses: dominikh/staticcheck-action@v1
+              with:
+                  version: "latest"
+                  install-go: false
+
+            - name: Run gosec security scanner
+              uses: securego/gosec@master
+              with:
+                  args: "-no-fail -fmt sarif -out results.sarif ./..."
+              continue-on-error: true
+
+            - name: Upload SARIF file
+              uses: github/codeql-action/upload-sarif@v3
+              with:
+                  sarif_file: results.sarif
+              if: always()
+
+    docker-build:
+        name: Docker Build Test
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Build Docker image
+              uses: docker/build-push-action@v5
+              with:
+                  context: .
+                  file: ./Dockerfile
+                  push: false
+                  tags: shiroxy:test
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+
+            - name: Test Docker image
+              run: |
+                  docker run --rm --name shiroxy-test -d -p 8080:80 shiroxy:test
+                  sleep 5
+
+                  # Test if container is running
+                  if ! docker ps | grep shiroxy-test; then
+                    echo "Container failed to start"
+                    docker logs shiroxy-test
+                    exit 1
+                  fi
+
+                  docker stop shiroxy-test
+
+    test-summary:
+        name: Test Summary
+        runs-on: ubuntu-latest
+        needs:
+            [
+                unit-tests,
+                integration-tests,
+                feature-tests,
+                benchmark-tests,
+                security-tests,
+                docker-build,
+            ]
+        if: always()
+
+        steps:
+            - name: Check test results
+              run: |
+                  echo "Unit Tests: ${{ needs.unit-tests.result }}"
+                  echo "Integration Tests: ${{ needs.integration-tests.result }}"
+                  echo "Feature Tests: ${{ needs.feature-tests.result }}"
+                  echo "Benchmark Tests: ${{ needs.benchmark-tests.result }}"
+                  echo "Security Tests: ${{ needs.security-tests.result }}"
+                  echo "Docker Build: ${{ needs.docker-build.result }}"
+
+                  if [[ "${{ needs.unit-tests.result }}" != "success" ]] || \
+                     [[ "${{ needs.integration-tests.result }}" != "success" ]] || \
+                     [[ "${{ needs.feature-tests.result }}" != "success" ]]; then
+                    echo "Some tests failed!"
+                    exit 1
+                  fi
+
+                  echo "All critical tests passed!"

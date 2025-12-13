@@ -719,10 +719,21 @@ func (p *Shiroxy) shouldCompress(req *http.Request, res *http.Response) bool {
 
 type gzipResponseWriter struct {
 	http.ResponseWriter
-	Writer io.Writer
+	Writer        io.Writer
+	headerWritten bool
+}
+
+func (w *gzipResponseWriter) WriteHeader(code int) {
+	if !w.headerWritten {
+		w.headerWritten = true
+		w.ResponseWriter.WriteHeader(code)
+	}
 }
 
 func (w *gzipResponseWriter) Write(b []byte) (int, error) {
+	if !w.headerWritten {
+		w.WriteHeader(http.StatusOK)
+	}
 	return w.Writer.Write(b)
 }
 

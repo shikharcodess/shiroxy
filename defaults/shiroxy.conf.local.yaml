@@ -1,0 +1,278 @@
+#        ##### #   # # #####  ####  #   #  #   #
+#       #     #   # # #   # #    #  # #    # #
+#      ##### ##### # ##### #    #   #      #
+#         # #   # # # #   #    #  # #    #
+#    ##### #   # # #  #   ####  #   #  #
+
+###### Default Configuration File ######
+
+# We recommend making a copy of this file and then updating any
+# settings in this file according to your needs.
+
+# Version of this configuration file
+version: "1.0.0"
+
+runtime:
+  mode: "stage"
+  instancename: "shiroxy-1"
+
+# Default section of the configuration. It contains settings
+# that are global to shiroxy
+default:
+  environment: ""
+
+  # The mode in which shiroxy will be running.
+  mode: "dev"
+
+  # Path where the logs will be stored. It is recommended not to
+  # change the default path unless you know what you are doing.
+  logpath: "/home/shikharcode/Main/opensource/shiroxy"
+
+  # Path where the data will be persisted in case of a failure
+  # or manual stop. It is recommended not to change the default 
+  # path unless you know what you are doing.
+  datapersistancepath: "/home/shikharcode/Main/opensource/shiroxy"
+
+  # This configuration tells shiroxy whether to start the DNS challenge
+  # solver. It starts an HTTP server that listens on port 80.
+  enablednschallengesolver: ""
+
+  # Timeout specifies the timeout for different scenarios
+  timeout:
+    # This sets the maximum time to wait for a connection to a 
+    # backend server to be established.
+    connect: "10s"
+
+    # This sets the maximum inactivity time on the client side.
+    client: "10s"
+
+    # This sets the maximum inactivity time on the server side.
+    server: "10s"
+  
+  # This specifies how the SSL certificates will be stored.
+  # You have to specify this setting when you set the secure
+  # target to "multiple" or set singletargetmode to "shiroxysinglesecure"
+  storage:
+    # This sets where you want to store your SSL certificates. You can
+    # store the certificates either in Redis or let shiroxy handle the storage.
+    # Possible values for location are "redis" and "memory".
+    # "redis" means storing the certificates in Redis for speed, 
+    # reliability, and security. "memory" means shiroxy will handle the
+    # storage process and store the certificates in primary memory
+    # for faster retrieval.
+    location: "memory"
+
+    # This sets the host of the Redis server
+    # redis_host: ""
+
+    # This sets the port of the Redis server
+    # redis_port: ""
+
+  # This section specifies settings related to analytics
+  analytics:
+    # This sets the interval after which analytics will be recorded.
+    # This value is in seconds. For example, if set to 10, analytics
+    # will be recorded and saved every 10 seconds.
+    collectioninterval: 10
+
+    # This specifies the base path for analytics-related API calls
+    routename: "/analytics"
+
+  # On the error page, there is a button, and we allow modifying how
+  # that button should behave. This specifies what the button label will
+  # look like and what happens when someone clicks on that button.
+  errorresponses:
+    # This sets the label of that button
+    errorpagebuttonname: "Shiroxy"
+
+    # This sets the URL that the button leads to after someone
+    # clicks on it.
+    errorpagebuttonurl: "https://github.com/ShikharY10/shiroxy"
+  
+  user:
+    email: "yshikharfzd10@gmail.com"
+    secret: "kjksdnfiwj"
+
+  adminapi:
+    port: "2210"
+    basepath: "admin"
+    
+
+# This section specifies settings related to the frontend of the reverse proxy
+frontend:
+  mode: "http"
+  # backend: "shiroxy-test"
+  # fallbackbackend: ""
+  httptohttps: true
+  bind:
+    - port: "80"
+      host: ""
+      target: "single"
+      secure: false
+      securesetting:
+        singletargetmode: "certandkey" # "shiroxysinglesecure" 
+        certandkey:
+          cert: "cert-location"
+          key: "key-location"
+        shiroxysinglesecure:
+          domain: "shikharcode.in"
+
+    # This is the port on which shiroxy will listen
+    - port: "443"
+
+      # Host on which shiroxy will listen
+      host: ""
+
+      # Target specifies how many domains you want to secure.
+      # If you want to secure only one domain, set the value of
+      # target to "single". If you want to secure more than one 
+      # domain, set the value of target to "multiple".
+      # target: "single"
+      target: "multiple"
+
+      # This specifies whether to run/expose the frontend of shiroxy
+      # in secure mode or not. If set to true, you are required to
+      # configure the secure settings in the bind section of the frontend section.
+      # secure: false
+      secure: true
+      # Domain SSL configuration
+      securesetting:
+
+        # This sets the behavior of the server when secure is set to true.
+        # The `secureverify` parameter is used to enforce certificate 
+        # verification for secure connections. Possible values are `none`,
+        # `optional`, and `required`.
+        # `none` - No client certificate is requested during the handshake, and if any certificates are sent, they are not verified.
+        # `optional` - A client certificate is requested during the handshake, but it does not require the client to send any certificates.
+        # `required` - A client certificate is requested during the handshake, and at least one valid certificate is required from the client.
+        secureverify: "none"
+
+        # If you set the value of target to "single", you have to
+        # specify how you want to secure the single domain.
+        # Set the value of singletargetmode to either
+        # "certandkey" or "shiroxysinglesecure". For "certandkey",
+        # you have to provide the SSL certificate. For "shiroxysinglesecure",
+        # you just need to specify the domain you want to secure, and
+        # shiroxy will handle everything.
+        singletargetmode: "certandkey"
+
+        # This sets the location of the SSL certificate and SSL key.
+        certandkey:
+          # This sets the certificate's location
+          cert: "cert-location"
+
+          # This sets the key's location
+          key: "key-location"
+
+        # This sets which domain name you want to secure in single mode.
+        # shiroxysinglesecure:
+        #   domain: "shikharcode.com"
+
+  # This is used to manage specific behaviors of HTTP connections and 
+  # client information forwarding.
+  options:
+    - "http-server-close"
+    - "forwardfor"
+
+  
+  # This sets the behavior of the server when secure is set to true.
+  # The `secureverify` parameter is used to enforce certificate 
+  # verification for secure connections. Possible values are `none`,
+  # `optional`, and `required`.
+  # `none` - No client certificate is requested during the handshake, and if any certificates are sent, they are not verified.
+  # `optional` - A client certificate is requested during the handshake, but it does not require the client to send any certificates.
+  # `required` - A client certificate is requested during the handshake, and at least one valid certificate is required from the client.
+
+  
+
+  # Will be supported soon
+  # defaultbackend: ""
+
+  # Will be supported soon
+  # fallbackbackend: ""
+
+# This section holds configuration about the backend to which shiroxy will
+# be forwarding the requests and how it is going to do that.
+backend:
+  # Optional: Name of the backend. In future versions, we will support multiple backends,
+  # which is why we are keeping this parameter from version one of the 
+  # configuration file.
+  name: "shiroxy-test"
+
+  # This indicates which load balancing algorithm to use. Shiroxy supports
+  # `round-robin`, `sticky-session`, and `least-count`. Default algorithm is round-robin.
+  balance: "round-robin"
+  # balance: "sticky-session"
+  # balance: "least-count"
+
+  # This indicates the rule for tag based routing. By default if not specified
+  # its value will be "none" which means no matter what are the tags a server 
+  # have, if a domain comes with a request with no tags in there metadata then
+  # a server will picked based on the specified or default value of the balance
+  # algorithm.
+  tagrule: "none"
+
+  noserveraction: "strict"
+
+  # This section sets how many servers that backend will have.
+  servers:
+    - id: "crud-api-1"
+      # Host address of the service
+      host: "localhost"
+      # Port on which that service is running
+      port: "8001"
+      # This sets the health URL of that service. If not set, the base URL
+      # will be used as the health URL (i.e., `host:port`).
+      healthurl: "http://localhost:8001/health"
+      tags: "api"
+
+    - id: "crub-api-2"
+      host: "localhost"
+      port: "8002"
+      healthurl: "http://localhost:8002/health"
+      tags: "api"
+    
+    - id: "crub-api-3"
+      host: "localhost"
+      port: "8003"
+      healthurl: "http://localhost:8003/health"
+      tags: "api"
+      
+
+
+  # This sets the mode through which the health of the server will be checked.
+  # If set to `url`, you have to provide the health URL in the server section
+  # of the backend.
+  healthcheckmode: "url"
+
+  # This sets the frequency by which the health of the services will be checked.
+  healthchecktriggerduration: 10
+
+# Will be supported soon
+logging:
+  enable: true
+  mode: "native/http/native-http"
+  schema:
+    - "[date-time] "
+  include:
+    - "*"
+    - ""
+
+# Webhook for different events that happen after API calls
+webhook:
+  # Toggle enabling/disabling the webhook
+  enable: true
+  # Events on which shiroxy should fire the webhook
+  events:
+    - "domain-register-success"
+    - "domain-register-failed"
+    - "domain-ssl-success"
+    - "domain-ssl-failed"
+    - "domain-remove-success"
+    - "domain-remove-failed"
+    - "domain-update-success"
+    - "domain-update-failed"
+    - "backendserver.register.success"
+    - "backendserver.register.failed"
+  # Webhook URL
+  url: "http://127.0.0.1:3000/webhook"
