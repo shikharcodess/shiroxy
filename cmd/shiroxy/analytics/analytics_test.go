@@ -80,15 +80,19 @@ func TestReadAnalyticsForcedCollection(t *testing.T) {
 	defer analytics.StopAnalytics()
 
 	// Force immediate collection
-	data, err := analytics.ReadAnalytics(true)
+	_, err = analytics.ReadAnalytics(true)
+	if err != nil {
+		t.Fatalf("failed to trigger forced collection: %v", err)
+	}
+
+	// Give it time to collect after forcing
+	time.Sleep(200 * time.Millisecond)
+
+	// Now read the collected data
+	data, err := analytics.ReadAnalytics(false)
 	if err != nil {
 		t.Fatalf("failed to read analytics: %v", err)
 	}
-
-	// Give it time to collect
-	time.Sleep(100 * time.Millisecond)
-
-	data, err = analytics.ReadAnalytics(false)
 	if data == nil {
 		t.Fatal("forced analytics collection failed")
 	}

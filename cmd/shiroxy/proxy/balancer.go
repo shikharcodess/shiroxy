@@ -375,6 +375,9 @@ func (lb *LoadBalancer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // updateServerTags reindexes servers based on their tags and updates the caching mechanisms.
+// TODO: Integrate this function when implementing dynamic tag updates.
+//
+//nolint:unused // Reserved for future tag management functionality
 func (lb *LoadBalancer) updateServerTags() {
 	lb.Mutex.Lock()
 	defer lb.Mutex.Unlock()
@@ -567,6 +570,8 @@ func (node *TrieNode) Search(tag string) (*BackendServers, bool) {
 //
 // Returns:
 //   - bool: true if all elements are true, false otherwise.
+//
+//nolint:unused // Utility function reserved for future health check aggregation
 func allTrue(arr []bool) bool {
 	for _, v := range arr {
 		if !v {

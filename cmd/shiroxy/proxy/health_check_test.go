@@ -11,12 +11,6 @@ import (
 	"time"
 )
 
-// Mock backend server struct for testing.
-type mockServer struct {
-	URL       string
-	IsHealthy bool
-}
-
 func TestHealthChecker(t *testing.T) {
 	// Set up the WaitGroup and defer waiting to make sure it waits for all checks.
 	var wg sync.WaitGroup

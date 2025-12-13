@@ -166,41 +166,167 @@ jobs:
           cd shiroxy
           go mod download
 
+      - name: Create CI config file
+        run: |
+          cd shiroxy
+
+          # Create a CI-specific config with correct paths
+          mkdir -p /tmp/shiroxy-ci
+
+          cat > defaults/shiroxy.conf.ci.yaml << 'EOF'
+          version: "1.0.0"
+
+          runtime:
+            mode: "stage"
+            instancename: "shiroxy-ci"
+
+          default:
+            environment: "ci"
+            mode: "dev"
+            logpath: "/tmp/shiroxy-ci"
+            datapersistancepath: "/tmp/shiroxy-ci"
+            enablednschallengesolver: ""
+            
+            timeout:
+              connect: "10s"
+              client: "10s"
+              server: "10s"
+            
+            storage:
+              location: "memory"
+            
+            analytics:
+              collectioninterval: 10
+              routename: "/analytics"
+            
+            errorresponses:
+              errorpagebuttonname: "Shiroxy"
+              errorpagebuttonurl: "https://github.com/ShikharY10/shiroxy"
+            
+            user:
+              email: "ci@test.com"
+              secret: "test-secret"
+            
+            adminapi:
+              port: "2210"
+              basepath: "admin"
+
+          frontend:
+            mode: "http"
+            httptohttps: false
+            bind:
+              - port: "80"
+                host: ""
+                target: "single"
+                secure: false
+            
+            options:
+              - "http-server-close"
+              - "forwardfor"
+
+          backend:
+            name: "shiroxy-test"
+            balance: "round-robin"
+            tagrule: "none"
+            noserveraction: "strict"
+            
+            servers:
+              - id: "backend-1"
+                host: "localhost"
+                port: "8001"
+                healthurl: "http://localhost:8001/health"
+              
+              - id: "backend-2"
+                host: "localhost"
+                port: "8002"
+                healthurl: "http://localhost:8002/health"
+              
+              - id: "backend-3"
+                host: "localhost"
+                port: "8003"
+                healthurl: "http://localhost:8003/health"
+            
+            healthcheckmode: "url"
+            healthchecktriggerduration: 10
+
+          logging:
+            enable: true
+            mode: "native"
+            schema:
+              - "[date-time] "
+            include:
+              - "*"
+
+          webhook:
+            enable: false
+          EOF
+
+      - name: Build Shiroxy binary
+        run: |
+          cd shiroxy
+          go build -o shiroxy-bin cmd/shiroxy/main.go
+
       - name: Start Shiroxy proxy
         run: |
           cd shiroxy
 
-          # Start Shiroxy in background with local config
-          sudo go run cmd/shiroxy/main.go -c defaults/shiroxy.conf.local.yaml > shiroxy.log 2>&1 &
-          echo $! > shiroxy.pid
+          # Start Shiroxy in background with CI config
+          sudo ./shiroxy-bin -c defaults/shiroxy.conf.ci.yaml > shiroxy.log 2>&1 &
+          SHIROXY_PID=$!
+          echo $SHIROXY_PID > shiroxy.pid
 
-          # Wait for Shiroxy to be ready
+          # Wait for Shiroxy to be ready with better checking
           echo "Waiting for Shiroxy to start..."
-          sleep 10
+          shiroxy_ready=false
+          for i in {1..30}; do
+            if sudo lsof -i :80 > /dev/null 2>&1; then
+              echo "✓ Shiroxy is listening on port 80"
+              shiroxy_ready=true
+              break
+            fi
+            
+            # Check if process is still running
+            if ! ps -p $SHIROXY_PID > /dev/null 2>&1; then
+              echo "ERROR: Shiroxy process died"
+              echo "=== Shiroxy logs ==="
+              cat shiroxy.log
+              exit 1
+            fi
+            
+            echo "Waiting for port 80... ($i/30)"
+            sleep 2
+          done
 
-          # Check if Shiroxy is running
-          if ! ps -p $(cat shiroxy.pid) > /dev/null; then
-            echo "Shiroxy failed to start"
+          if [ "$shiroxy_ready" = "false" ]; then
+            echo "ERROR: Shiroxy failed to start after 60 seconds"
             echo "=== Shiroxy logs ==="
             cat shiroxy.log
             exit 1
           fi
 
-          echo "✓ Shiroxy is running (PID: $(cat shiroxy.pid))"
+          echo "✓ Shiroxy is running (PID: $SHIROXY_PID)"
 
       - name: Verify Shiroxy connectivity
         run: |
           cd shiroxy
 
           # Test if port 80 is listening
-          if ! nc -z localhost 80; then
-            echo "Port 80 is not listening"
+          if ! sudo lsof -i :80 > /dev/null 2>&1; then
+            echo "ERROR: Port 80 is not listening"
             echo "=== Shiroxy logs ==="
             cat shiroxy.log
             exit 1
           fi
 
           echo "✓ Shiroxy is listening on port 80"
+
+          # Try a basic HTTP request
+          if curl -f http://localhost:80 > /dev/null 2>&1 || [ $? -eq 22 ]; then
+            echo "✓ Shiroxy is responding to HTTP requests"
+          else
+            echo "WARNING: Shiroxy may not be responding properly"
+            cat shiroxy.log
+          fi
 
       - name: Run integration tests
         run: |
