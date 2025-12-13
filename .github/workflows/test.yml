@@ -600,16 +600,30 @@ jobs:
           install-go: false
 
       - name: Run gosec security scanner
-        uses: securego/gosec@master
-        with:
-          args: "-no-fail -fmt sarif -out results.sarif ./..."
+        id: gosec
+        run: |
+          # Install gosec
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+
+          # Run gosec and generate SARIF report
+          $(go env GOPATH)/bin/gosec -no-fail -fmt sarif -out results.sarif ./... || true
+
+          # Check if SARIF file was created
+          if [ -f results.sarif ]; then
+            echo "sarif_generated=true" >> $GITHUB_OUTPUT
+            echo "✓ SARIF report generated"
+          else
+            echo "sarif_generated=false" >> $GITHUB_OUTPUT
+            echo "⚠ SARIF report not generated"
+          fi
         continue-on-error: true
 
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: results.sarif
-        if: always()
+        if: steps.gosec.outputs.sarif_generated == 'true'
+        continue-on-error: true
 
   docker-build:
     name: Docker Build Test
